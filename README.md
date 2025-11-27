@@ -19,6 +19,9 @@
   - Firewall actions (`accept`, `reject`, `discard`)
   - Comments and annotations
 
+![Theme Demo](.github/jink-demo-theme.png "Themes")
+
+
 ## Installation
 
 ### From Source
