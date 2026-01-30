@@ -28,6 +28,15 @@ If you work with Cisco, check out [cink](https://github.com/lasseh/cink) — syn
 
 ## Installation
 
+### Binary Release
+
+Download the latest archive for your platform from the [releases page](https://github.com/lasseh/jink/releases/latest), then extract it:
+
+```bash
+wget <release url>
+tar -zxvf jink_*_linux_amd64.tar.gz -C /usr/local/bin
+```
+
 ### From Source
 
 ```bash
