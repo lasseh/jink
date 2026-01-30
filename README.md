@@ -22,6 +22,10 @@
 ![Theme Demo](.github/jink-demo-theme.png "Themes")
 
 
+## See Also
+
+If you work with Cisco, check out [cink](https://github.com/lasseh/cink) — syntax highlighting won't fix your vendor choice, but it helps.
+
 ## Installation
 
 ### From Source
