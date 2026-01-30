@@ -1,4 +1,4 @@
-.PHONY: all build build-linux rebuild install clean test vet fmt lint deps demo demo-set demo-all help
+.PHONY: all build build-linux rebuild install clean test vet fmt lint deps release release-snapshot demo demo-set demo-all help
 
 # Project info
 BINARY     := jink
