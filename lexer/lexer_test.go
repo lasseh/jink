@@ -996,6 +996,56 @@ func TestSetParseMode(t *testing.T) {
 	}
 }
 
+func TestPromptTokenReconstruction(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "prompt with trailing space no command",
+			input: "user@router> ",
+		},
+		{
+			name:  "prompt with command",
+			input: "user@router> show route",
+		},
+		{
+			name:  "config prompt with trailing space",
+			input: "user@router# ",
+		},
+		{
+			name:  "prompt with carriage return prefix",
+			input: "\ruser@router> ",
+		},
+		{
+			name:  "prompt with edit prefix",
+			input: "[edit]user@router# ",
+		},
+		{
+			name:  "prompt no trailing space no command",
+			input: "user@router>",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			tokens := l.Tokenize()
+
+			// Reconstruct by concatenating all token values
+			var reconstructed string
+			for _, tok := range tokens {
+				reconstructed += tok.Value
+			}
+
+			if reconstructed != tt.input {
+				t.Errorf("token reconstruction mismatch:\n  input:         %q\n  reconstructed: %q\n  tokens: %v",
+					tt.input, reconstructed, tokens)
+			}
+		})
+	}
+}
+
 func TestShowModePreservesSharedPatterns(t *testing.T) {
 	// IPs and interfaces should still work in show mode
 	tests := []struct {

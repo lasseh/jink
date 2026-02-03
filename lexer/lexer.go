@@ -468,7 +468,7 @@ var (
 	// Allows optional command after the prompt character
 	// The \n? at the end handles lines that include trailing newlines
 	// Group 3 captures leading whitespace/control chars (like \r) to preserve them
-	promptPattern = regexp.MustCompile(`^(\{[^}]+\})?(\[edit[^\]]*\])?([\s\x00-\x1f]*)([\w-]+)@([\w.-]+)([>#])\s*(.*?)\n?$`)
+	promptPattern = regexp.MustCompile(`^(\{[^}]+\})?(\[edit[^\]]*\])?([\s\x00-\x1f]*)([\w-]+)@([\w.-]+)([>#])(\s*)(.*?)\n?$`)
 )
 
 // New creates a new Lexer for the given input.
@@ -520,7 +520,8 @@ func (l *Lexer) tryTokenizePrompt(input string) []Token {
 	// matches[4] = username
 	// matches[5] = hostname
 	// matches[6] = prompt char (> or #)
-	// matches[7] = command after prompt (optional)
+	// matches[7] = whitespace between prompt char and command (optional)
+	// matches[8] = command after prompt (optional)
 
 	// Add {master:N} prefix if present
 	if matches[1] != "" {
@@ -600,19 +601,20 @@ func (l *Lexer) tryTokenizePrompt(input string) []Token {
 	})
 	col++
 
-	// Add command after prompt if present
+	// Emit captured whitespace after prompt char (group 7)
 	if matches[7] != "" {
-		// Add the space between prompt and command
 		tokens = append(tokens, Token{
 			Type:   TokenText,
-			Value:  " ",
+			Value:  matches[7],
 			Line:   1,
 			Column: col,
 		})
-		col++
+		col += len(matches[7])
+	}
 
-		// Tokenize the command part
-		cmdLexer := New(strings.TrimSpace(matches[7]))
+	// Tokenize command after prompt if present (group 8)
+	if matches[8] != "" {
+		cmdLexer := New(strings.TrimSpace(matches[8]))
 		cmdTokens := cmdLexer.Tokenize()
 		for _, tok := range cmdTokens {
 			tok.Column = col
