@@ -13,15 +13,16 @@ const (
 
 // Lexer tokenizes JunOS configuration text
 type Lexer struct {
-	input          string
-	pos            int
-	line           int
-	col            int
-	parseMode      ParseMode
-	detectedMode   bool
-	expectingValue bool   // true after keywords like "description" that take a value
-	expectingUnit  bool   // true after "unit" keyword to classify numbers as TokenUnit
-	lastToken      string // tracks the last non-whitespace token value for context
+	input            string
+	pos              int
+	line             int
+	col              int
+	parseMode        ParseMode
+	detectedMode     bool
+	expectingValue   bool   // true after keywords like "description" that take a value
+	expectingUnit    bool   // true after "unit" keyword to classify numbers as TokenUnit
+	lastToken        string // tracks the last non-whitespace token value for context
+	firstWordOnLine  bool   // true when the next word is the first on its line (for positional fallback)
 }
 
 // ParseMode determines which classification rules to use for tokenization.
@@ -475,10 +476,11 @@ var (
 // The lexer auto-detects whether input is config syntax or show command output.
 func New(input string) *Lexer {
 	return &Lexer{
-		input: input,
-		pos:   0,
-		line:  1,
-		col:   1,
+		input:           input,
+		pos:             0,
+		line:            1,
+		col:             1,
+		firstWordOnLine: true,
 	}
 }
 
@@ -904,9 +906,16 @@ func (l *Lexer) scanWhitespace() Token {
 		l.advance()
 	}
 
+	value := l.input[start:l.pos]
+
+	// Reset positional tracking on newlines
+	if strings.Contains(value, "\n") {
+		l.firstWordOnLine = true
+	}
+
 	return Token{
 		Type:   TokenText,
-		Value:  l.input[start:l.pos],
+		Value:  value,
 		Line:   startLine,
 		Column: startCol,
 	}
@@ -928,6 +937,9 @@ func (l *Lexer) scanWord() Token {
 
 	word := l.input[start:l.pos]
 	tokenType := l.classifyWord(word)
+
+	// After classifying any word, it's no longer the first on the line
+	l.firstWordOnLine = false
 
 	return Token{
 		Type:   tokenType,
@@ -997,8 +1009,19 @@ func (l *Lexer) classifyConfigWord(word, lower string) TokenType {
 		return TokenKeyword
 	}
 
-	// Fall through to shared patterns
-	return l.classifySharedPatterns(word)
+	// Fall through to shared patterns (IPs, interfaces, MACs, numbers, etc.)
+	if result := l.classifySharedPatterns(word); result != TokenIdentifier {
+		return result
+	}
+
+	// Positional fallback: in config mode, if no map or pattern matched,
+	// use line position to classify. The first word on a line is typically
+	// a configuration keyword (e.g. "authentication-method"), and subsequent
+	// words are its values (e.g. "pre-shared-keys").
+	if l.firstWordOnLine {
+		return TokenKeyword
+	}
+	return TokenValue
 }
 
 // classifyShowWord handles show command output classification

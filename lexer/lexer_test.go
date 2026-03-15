@@ -1046,6 +1046,92 @@ func TestPromptTokenReconstruction(t *testing.T) {
 	}
 }
 
+func TestPositionalFallback(t *testing.T) {
+	// Unrecognized words should get keyword/value classification based on
+	// line position instead of falling through as plain identifiers.
+	input := `security {
+    ike {
+        proposal IKE-PROPOSAL {
+            authentication-method pre-shared-keys;
+            dh-group group14;
+            encryption-algorithm aes-256-cbc;
+            lifetime-seconds 28800;
+        }
+    }
+}`
+
+	l := New(input)
+	tokens := l.Tokenize()
+
+	// Build a map of word → token type for easy lookup
+	wordTypes := make(map[string]TokenType)
+	for _, tok := range tokens {
+		if tok.Type != TokenText && tok.Type != TokenBrace && tok.Type != TokenSemicolon {
+			wordTypes[tok.Value] = tok.Type
+		}
+	}
+
+	// Words already in maps should keep their classification
+	if wordTypes["security"] != TokenSection {
+		t.Errorf("expected TokenSection for 'security', got %v", wordTypes["security"])
+	}
+	if wordTypes["ike"] != TokenProtocol {
+		t.Errorf("expected TokenProtocol for 'ike', got %v", wordTypes["ike"])
+	}
+	if wordTypes["proposal"] != TokenKeyword {
+		t.Errorf("expected TokenKeyword for 'proposal', got %v", wordTypes["proposal"])
+	}
+
+	// First unrecognized word on a line should be classified as keyword
+	if wordTypes["authentication-method"] != TokenKeyword {
+		t.Errorf("expected TokenKeyword for 'authentication-method', got %v", wordTypes["authentication-method"])
+	}
+	if wordTypes["dh-group"] != TokenKeyword {
+		t.Errorf("expected TokenKeyword for 'dh-group', got %v", wordTypes["dh-group"])
+	}
+	if wordTypes["encryption-algorithm"] != TokenKeyword {
+		t.Errorf("expected TokenKeyword for 'encryption-algorithm', got %v", wordTypes["encryption-algorithm"])
+	}
+	if wordTypes["lifetime-seconds"] != TokenKeyword {
+		t.Errorf("expected TokenKeyword for 'lifetime-seconds', got %v", wordTypes["lifetime-seconds"])
+	}
+
+	// Subsequent unrecognized words on the same line should be classified as value
+	if wordTypes["pre-shared-keys"] != TokenValue {
+		t.Errorf("expected TokenValue for 'pre-shared-keys', got %v", wordTypes["pre-shared-keys"])
+	}
+	if wordTypes["group14"] != TokenValue {
+		t.Errorf("expected TokenValue for 'group14', got %v", wordTypes["group14"])
+	}
+	if wordTypes["aes-256-cbc"] != TokenValue {
+		t.Errorf("expected TokenValue for 'aes-256-cbc', got %v", wordTypes["aes-256-cbc"])
+	}
+
+	// Names after recognized keywords on { lines should be values
+	if wordTypes["IKE-PROPOSAL"] != TokenValue {
+		t.Errorf("expected TokenValue for 'IKE-PROPOSAL', got %v", wordTypes["IKE-PROPOSAL"])
+	}
+
+	// Numbers should still be classified as numbers (shared patterns take priority)
+	if wordTypes["28800"] != TokenNumber {
+		t.Errorf("expected TokenNumber for '28800', got %v", wordTypes["28800"])
+	}
+}
+
+func TestPositionalFallbackDoesNotAffectShowMode(t *testing.T) {
+	// Show mode should not use positional fallback
+	input := "someunknownword anotherword"
+	l := New(input)
+	l.SetParseMode(ParseModeShow)
+	tokens := l.Tokenize()
+
+	for _, tok := range tokens {
+		if tok.Type == TokenKeyword || tok.Type == TokenValue {
+			t.Errorf("show mode should not produce TokenKeyword/TokenValue via fallback, got %v for %q", tok.Type, tok.Value)
+		}
+	}
+}
+
 func TestShowModePreservesSharedPatterns(t *testing.T) {
 	// IPs and interfaces should still work in show mode
 	tests := []struct {
