@@ -68,102 +68,63 @@ type Token struct {
 	Column int
 }
 
+// tokenTypeNames maps each token type to its display name. Keyed by the
+// constant (not positional), so reordering the const block can't desync it.
+var tokenTypeNames = [...]string{
+	TokenText:           "Text",
+	TokenCommand:        "Command",
+	TokenSection:        "Section",
+	TokenProtocol:       "Protocol",
+	TokenAction:         "Action",
+	TokenInterface:      "Interface",
+	TokenIPv4:           "IPv4",
+	TokenIPv4Prefix:     "IPv4Prefix",
+	TokenIPv6:           "IPv6",
+	TokenIPv6Prefix:     "IPv6Prefix",
+	TokenMAC:            "MAC",
+	TokenNumber:         "Number",
+	TokenString:         "String",
+	TokenComment:        "Comment",
+	TokenAnnotation:     "Annotation",
+	TokenBrace:          "Brace",
+	TokenSemicolon:      "Semicolon",
+	TokenWildcard:       "Wildcard",
+	TokenIdentifier:     "Identifier",
+	TokenKeyword:        "Keyword",
+	TokenOperator:       "Operator",
+	TokenUnit:           "Unit",
+	TokenASN:            "ASN",
+	TokenCommunity:      "Community",
+	TokenValue:          "Value",
+	TokenStateGood:      "StateGood",
+	TokenStateBad:       "StateBad",
+	TokenStateWarning:   "StateWarning",
+	TokenStateNeutral:   "StateNeutral",
+	TokenColumnHeader:   "ColumnHeader",
+	TokenStatusSymbol:   "StatusSymbol",
+	TokenTimeDuration:   "TimeDuration",
+	TokenPercentage:     "Percentage",
+	TokenByteSize:       "ByteSize",
+	TokenRouteProtocol:  "RouteProtocol",
+	TokenTableName:      "TableName",
+	TokenPromptUser:     "PromptUser",
+	TokenPromptAt:       "PromptAt",
+	TokenPromptHostOper: "PromptHostOper",
+	TokenPromptHostConf: "PromptHostConf",
+	TokenPromptOper:     "PromptOper",
+	TokenPromptConf:     "PromptConf",
+	TokenPromptEdit:     "PromptEdit",
+	TokenDiffAdd:        "DiffAdd",
+	TokenDiffRemove:     "DiffRemove",
+	TokenDiffContext:    "DiffContext",
+}
+
 // String returns a string representation of the token type
 func (t TokenType) String() string {
-	switch t {
-	case TokenText:
-		return "Text"
-	case TokenCommand:
-		return "Command"
-	case TokenSection:
-		return "Section"
-	case TokenProtocol:
-		return "Protocol"
-	case TokenAction:
-		return "Action"
-	case TokenInterface:
-		return "Interface"
-	case TokenIPv4:
-		return "IPv4"
-	case TokenIPv4Prefix:
-		return "IPv4Prefix"
-	case TokenIPv6:
-		return "IPv6"
-	case TokenIPv6Prefix:
-		return "IPv6Prefix"
-	case TokenMAC:
-		return "MAC"
-	case TokenNumber:
-		return "Number"
-	case TokenString:
-		return "String"
-	case TokenComment:
-		return "Comment"
-	case TokenAnnotation:
-		return "Annotation"
-	case TokenBrace:
-		return "Brace"
-	case TokenSemicolon:
-		return "Semicolon"
-	case TokenWildcard:
-		return "Wildcard"
-	case TokenIdentifier:
-		return "Identifier"
-	case TokenKeyword:
-		return "Keyword"
-	case TokenOperator:
-		return "Operator"
-	case TokenUnit:
-		return "Unit"
-	case TokenASN:
-		return "ASN"
-	case TokenCommunity:
-		return "Community"
-	case TokenValue:
-		return "Value"
-	case TokenStateGood:
-		return "StateGood"
-	case TokenStateBad:
-		return "StateBad"
-	case TokenStateWarning:
-		return "StateWarning"
-	case TokenStateNeutral:
-		return "StateNeutral"
-	case TokenColumnHeader:
-		return "ColumnHeader"
-	case TokenStatusSymbol:
-		return "StatusSymbol"
-	case TokenTimeDuration:
-		return "TimeDuration"
-	case TokenPercentage:
-		return "Percentage"
-	case TokenByteSize:
-		return "ByteSize"
-	case TokenRouteProtocol:
-		return "RouteProtocol"
-	case TokenTableName:
-		return "TableName"
-	case TokenPromptUser:
-		return "PromptUser"
-	case TokenPromptAt:
-		return "PromptAt"
-	case TokenPromptHostOper:
-		return "PromptHostOper"
-	case TokenPromptHostConf:
-		return "PromptHostConf"
-	case TokenPromptOper:
-		return "PromptOper"
-	case TokenPromptConf:
-		return "PromptConf"
-	case TokenPromptEdit:
-		return "PromptEdit"
-	case TokenDiffAdd:
-		return "DiffAdd"
-	case TokenDiffRemove:
-		return "DiffRemove"
-	case TokenDiffContext:
-		return "DiffContext"
-	default:
-		return "Unknown"
+	if int(t) >= 0 && int(t) < len(tokenTypeNames) {
+		if name := tokenTypeNames[t]; name != "" {
+			return name
+		}
 	}
+	return "Unknown"
 }
