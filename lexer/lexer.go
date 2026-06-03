@@ -711,7 +711,7 @@ func (l *Lexer) scanDiffLine() (Token, bool) {
 	start := l.pos
 
 	// Check for [edit ...] context line - color the whole line
-	if l.input[l.pos] == '[' && l.pos+5 < len(l.input) && l.input[l.pos:l.pos+5] == "[edit" {
+	if l.input[l.pos] == '[' && l.pos+5 <= len(l.input) && l.input[l.pos:l.pos+5] == "[edit" {
 		// Scan until end of line
 		for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 			l.advance()
@@ -908,9 +908,13 @@ func (l *Lexer) scanWhitespace() Token {
 
 	value := l.input[start:l.pos]
 
-	// Reset positional tracking on newlines
+	// Reset per-line parser state on newlines. These flags track context
+	// within a single line (keyword/value/unit always appear together), so
+	// they must not leak across a line boundary.
 	if strings.Contains(value, "\n") {
 		l.firstWordOnLine = true
+		l.expectingValue = false
+		l.expectingUnit = false
 	}
 
 	return Token{

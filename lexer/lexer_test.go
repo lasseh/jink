@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -1158,4 +1159,106 @@ func TestShowModePreservesSharedPatterns(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsPrompt(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"user@router>", true},
+		{"[edit] user@router#", true},
+		{"{master:0}[edit] admin@core-sw1#", true},
+		{"  user@router> show interfaces", true},
+		{"user@router# set system host-name foo", true},
+		{"just some plain text", false},
+		{"user@router with no prompt char", false},
+		{"@host>", false},
+		{"set system host-name foo", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			if got := IsPrompt(tt.input); got != tt.want {
+				t.Errorf("IsPrompt(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestScanDiffLine(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		firstType TokenType
+		firstVal  string
+	}{
+		{"edit context", "[edit interfaces]", TokenDiffContext, "[edit interfaces]"},
+		{"edit at eof", "[edit", TokenDiffContext, "[edit"},
+		{"diff add", "+ unit 0;", TokenDiffAdd, "+"},
+		{"diff remove", "- mtu 1500;", TokenDiffRemove, "-"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := New(tt.input).Tokenize()
+			if len(tokens) == 0 {
+				t.Fatal("expected at least one token")
+			}
+			if tokens[0].Type != tt.firstType {
+				t.Errorf("first token = %v, want %v", tokens[0].Type, tt.firstType)
+			}
+			if tokens[0].Value != tt.firstVal {
+				t.Errorf("first token value = %q, want %q", tokens[0].Value, tt.firstVal)
+			}
+		})
+	}
+
+	// A '+' not followed by whitespace is not a diff line.
+	tokens := New("+nospace").Tokenize()
+	if len(tokens) > 0 && (tokens[0].Type == TokenDiffAdd || tokens[0].Type == TokenDiffRemove) {
+		t.Errorf("'+nospace' should not be classified as a diff line, got %v", tokens[0].Type)
+	}
+}
+
+func TestTokenTypeString(t *testing.T) {
+	// Every defined token constant must have a non-empty, non-"Unknown" name.
+	for tt := TokenText; tt <= TokenDiffContext; tt++ {
+		s := tt.String()
+		if s == "" {
+			t.Errorf("TokenType(%d).String() is empty", tt)
+		}
+		if s == "Unknown" {
+			t.Errorf("TokenType(%d).String() = %q, missing a case", tt, s)
+		}
+	}
+
+	// Out-of-range values fall back to "Unknown".
+	if got := TokenType(999).String(); got != "Unknown" {
+		t.Errorf("TokenType(999).String() = %q, want \"Unknown\"", got)
+	}
+}
+
+func TestPerLineStateResetOnNewline(t *testing.T) {
+	// A value keyword left dangling at the end of a line must not cause the
+	// following line to be swallowed whole as a single value token.
+	t.Run("expectingValue does not leak across newline", func(t *testing.T) {
+		tokens := New("host-name\nfoo bar;").Tokenize()
+		for _, tok := range tokens {
+			if strings.Contains(tok.Value, "foo bar") {
+				t.Fatalf("second line was swallowed as one value token: %q", tok.Value)
+			}
+		}
+	})
+
+	// A "unit" keyword at end of line must not classify a number on the next
+	// line as a unit number.
+	t.Run("expectingUnit does not leak across newline", func(t *testing.T) {
+		tokens := New("unit\n5").Tokenize()
+		for _, tok := range tokens {
+			if tok.Value == "5" && tok.Type == TokenUnit {
+				t.Fatal("number on next line wrongly classified as TokenUnit")
+			}
+		}
+	})
 }
