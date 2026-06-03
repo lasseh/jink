@@ -424,6 +424,38 @@ func TestThemeGetColorUnknown(t *testing.T) {
 	}
 }
 
+func TestThemeByNameAllNames(t *testing.T) {
+	// Every advertised theme name must resolve to a usable theme.
+	for _, name := range ThemeNames() {
+		theme := ThemeByName(name)
+		if theme == nil {
+			t.Errorf("ThemeByName(%q) returned nil", name)
+			continue
+		}
+		if theme.GetColor(lexer.TokenCommand) == "" {
+			t.Errorf("ThemeByName(%q) has no color for TokenCommand", name)
+		}
+	}
+}
+
+func TestThemeByNameAliases(t *testing.T) {
+	// Alias names accepted by the CLI must resolve, not fall back to default.
+	aliases := []string{"tokyo-night", "tokyo", "catppuccin-mocha", "mocha", "gruvbox-dark", "one-dark"}
+	for _, name := range aliases {
+		if ThemeByName(name).GetColor(lexer.TokenCommand) == "" {
+			t.Errorf("ThemeByName(%q) alias did not resolve to a usable theme", name)
+		}
+	}
+}
+
+func TestThemeByNameUnknownFallsBackToDefault(t *testing.T) {
+	got := ThemeByName("does-not-exist")
+	want := DefaultTheme()
+	if got.GetColor(lexer.TokenCommand) != want.GetColor(lexer.TokenCommand) {
+		t.Error("unknown theme name should fall back to DefaultTheme")
+	}
+}
+
 func TestColor256(t *testing.T) {
 	result := Color256(208)
 	expected := "\033[38;5;208m"
