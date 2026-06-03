@@ -1,0 +1,8 @@
+#!/bin/sh
+# Pre-push hook: run the full check suite (lint + tests) before pushing.
+# Enable with: make hooks  (sets core.hooksPath to .githooks)
+# Bypass once with: git push --no-verify
+set -e
+
+echo "pre-push: running 'make check'..."
+make check
