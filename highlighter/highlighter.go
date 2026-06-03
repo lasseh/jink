@@ -105,6 +105,12 @@ func (h *Highlighter) HighlightForced(input string) string {
 
 // highlightTokens tokenizes and colorizes the input while preserving cursor control sequences
 func (h *Highlighter) highlightTokens(input string) string {
+	// Fast path: most lines contain no escape sequences, so skip the segment
+	// split (one slice alloc + extra buffer copies) and tokenize directly.
+	if !HasANSI(input) {
+		return h.highlightTokensCleaned(input)
+	}
+
 	// Extract cursor control sequences and text segments separately
 	// We need to preserve cursor movement/clear sequences for proper terminal rendering
 	segments := extractSegments(input)
