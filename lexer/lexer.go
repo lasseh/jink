@@ -5,24 +5,24 @@ import (
 	"strings"
 )
 
-// Constants for lexer configuration
+// Constants for lexer configuration.
 const (
-	// parseModeDetectionSampleSize is the number of characters sampled for auto-detection
+	// parseModeDetectionSampleSize is the number of characters sampled for auto-detection.
 	parseModeDetectionSampleSize = 500
 )
 
-// Lexer tokenizes JunOS configuration text
+// Lexer tokenizes JunOS configuration text.
 type Lexer struct {
-	input            string
-	pos              int
-	line             int
-	col              int
-	parseMode        ParseMode
-	detectedMode     bool
-	expectingValue   bool   // true after keywords like "description" that take a value
-	expectingUnit    bool   // true after "unit" keyword to classify numbers as TokenUnit
-	lastToken        string // tracks the last non-whitespace token value for context
-	firstWordOnLine  bool   // true when the next word is the first on its line (for positional fallback)
+	input           string
+	pos             int
+	line            int
+	col             int
+	parseMode       ParseMode
+	detectedMode    bool
+	expectingValue  bool   // true after keywords like "description" that take a value
+	expectingUnit   bool   // true after "unit" keyword to classify numbers as TokenUnit
+	lastToken       string // tracks the last non-whitespace token value for context
+	firstWordOnLine bool   // true when the next word is the first on its line (for positional fallback)
 }
 
 // ParseMode determines which classification rules to use for tokenization.
@@ -42,7 +42,7 @@ const (
 	ParseModeShow
 )
 
-// Keyword sets for classification
+// Keyword sets for classification.
 var (
 	commands = map[string]bool{
 		"set": true, "delete": true, "deactivate": true, "activate": true,
@@ -362,7 +362,7 @@ var (
 		"extension-service": true, "request-response": true, "notification": true,
 	}
 
-	// Keywords that take a value (colored as TokenValue)
+	// Keywords that take a value (colored as TokenValue).
 	valueKeywords = map[string]bool{
 		"description":        true,
 		"host-name":          true,
@@ -406,7 +406,7 @@ var (
 	asnPattern        = regexp.MustCompile(`^[Aa][Ss]\d+$`) // AS number format (AS65000)
 	unitNumberPattern = regexp.MustCompile(`^\d+$`)         // Plain numbers for unit classification
 
-	// Show output state keywords
+	// Show output state keywords.
 	statesGood = map[string]bool{
 		"up": true, "establ": true, "established": true,
 		"full": true, "master": true, "primary": true,
@@ -456,7 +456,7 @@ var (
 		"L": true, "D": true,
 	}
 
-	// Show output regex patterns
+	// Show output regex patterns.
 	timeDurationPattern  = regexp.MustCompile(`^(\d+[wdhms])+$|^\d+:\d{2}(:\d{2})?$`)
 	percentagePattern    = regexp.MustCompile(`^\d+(\.\d+)?%$`)
 	byteSizePattern      = regexp.MustCompile(`^\d+(\.\d+)?[KMGTP][Bb]?$`)
@@ -468,8 +468,8 @@ var (
 	// Matches: user@hostname> or user@hostname# (with optional {master:N}[edit ...] prefix)
 	// Allows optional command after the prompt character
 	// The \n? at the end handles lines that include trailing newlines
-	// Group 3 captures leading whitespace/control chars (like \r) to preserve them
-	promptPattern = regexp.MustCompile(`^(\{[^}]+\})?(\[edit[^\]]*\])?([\s\x00-\x1f]*)([\w-]+)@([\w.-]+)([>#])(\s*)(.*?)\n?$`)
+	// Group 3 captures leading whitespace/control chars (like \r) to preserve them.
+	promptPattern = regexp.MustCompile(`^(\{[^}]+\})?(\[edit[^\]]*\])?([\x00-\x20]*)([\w-]+)@([\w.-]+)([>#])(\s*)(.*?)\n?$`)
 )
 
 // New creates a new Lexer for the given input.
@@ -505,7 +505,7 @@ func (l *Lexer) Tokenize() []Token {
 	return tokens
 }
 
-// tryTokenizePrompt checks if input matches a JunOS prompt and returns tokens if so
+// tryTokenizePrompt checks if input matches a JunOS prompt and returns tokens if so.
 func (l *Lexer) tryTokenizePrompt(input string) []Token {
 	// Try to match the full prompt pattern
 	matches := promptPattern.FindStringSubmatch(input)
@@ -638,7 +638,7 @@ func (l *Lexer) tryTokenizePrompt(input string) []Token {
 	return tokens
 }
 
-// nextToken extracts the next token from the input
+// nextToken extracts the next token from the input.
 func (l *Lexer) nextToken() Token {
 	// Skip whitespace but preserve position info
 	startLine, startCol := l.line, l.col
@@ -748,7 +748,7 @@ func (l *Lexer) scanDiffLine() (Token, bool) {
 	return Token{}, false
 }
 
-// scanComment scans a line comment starting with #
+// scanComment scans a line comment starting with #.
 func (l *Lexer) scanComment() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -772,7 +772,7 @@ func (l *Lexer) scanComment() Token {
 	}
 }
 
-// scanBlockComment scans a /* */ comment
+// scanBlockComment scans a /* */ comment.
 func (l *Lexer) scanBlockComment() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -797,7 +797,7 @@ func (l *Lexer) scanBlockComment() Token {
 	}
 }
 
-// scanString scans a quoted string
+// scanString scans a quoted string.
 func (l *Lexer) scanString(quote byte) Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -824,7 +824,7 @@ func (l *Lexer) scanString(quote byte) Token {
 	}
 }
 
-// scanBrace scans { or }
+// scanBrace scans { or }.
 func (l *Lexer) scanBrace() Token {
 	startLine, startCol := l.line, l.col
 	ch := l.input[l.pos]
@@ -838,7 +838,7 @@ func (l *Lexer) scanBrace() Token {
 	}
 }
 
-// scanSemicolon scans ;
+// scanSemicolon scans ;.
 func (l *Lexer) scanSemicolon() Token {
 	startLine, startCol := l.line, l.col
 	l.advance()
@@ -850,7 +850,7 @@ func (l *Lexer) scanSemicolon() Token {
 	}
 }
 
-// scanUnquotedValue scans an unquoted value until semicolon (for keyword values)
+// scanUnquotedValue scans an unquoted value until semicolon (for keyword values).
 func (l *Lexer) scanUnquotedValue() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -876,7 +876,7 @@ func (l *Lexer) scanUnquotedValue() Token {
 	}
 }
 
-// scanWildcard scans <*> style wildcards
+// scanWildcard scans <*> style wildcards.
 func (l *Lexer) scanWildcard() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -897,7 +897,7 @@ func (l *Lexer) scanWildcard() Token {
 	}
 }
 
-// scanWhitespace scans whitespace characters
+// scanWhitespace scans whitespace characters.
 func (l *Lexer) scanWhitespace() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -925,7 +925,7 @@ func (l *Lexer) scanWhitespace() Token {
 	}
 }
 
-// scanWord scans an identifier or keyword
+// scanWord scans an identifier or keyword.
 func (l *Lexer) scanWord() Token {
 	startLine, startCol := l.line, l.col
 	start := l.pos
@@ -953,7 +953,7 @@ func (l *Lexer) scanWord() Token {
 	}
 }
 
-// classifyWord determines the token type for a word
+// classifyWord determines the token type for a word.
 func (l *Lexer) classifyWord(word string) TokenType {
 	// Auto-detect mode on first classification if needed
 	if l.parseMode == ParseModeAuto && !l.detectedMode {
@@ -970,7 +970,7 @@ func (l *Lexer) classifyWord(word string) TokenType {
 	return l.classifyConfigWord(word, lower)
 }
 
-// classifyConfigWord handles configuration syntax classification
+// classifyConfigWord handles configuration syntax classification.
 func (l *Lexer) classifyConfigWord(word, lower string) TokenType {
 	// Check if this is a unit number (after "unit" keyword)
 	if l.expectingUnit && unitNumberPattern.MatchString(word) {
@@ -1028,7 +1028,7 @@ func (l *Lexer) classifyConfigWord(word, lower string) TokenType {
 	return TokenValue
 }
 
-// classifyShowWord handles show command output classification
+// classifyShowWord handles show command output classification.
 func (l *Lexer) classifyShowWord(word, lower string) TokenType {
 	// State classification (highest priority for visibility)
 	if statesGood[lower] {
@@ -1076,7 +1076,7 @@ func (l *Lexer) classifyShowWord(word, lower string) TokenType {
 	return l.classifySharedPatterns(word)
 }
 
-// classifySharedPatterns handles patterns common to both config and show modes
+// classifySharedPatterns handles patterns common to both config and show modes.
 func (l *Lexer) classifySharedPatterns(word string) TokenType {
 	// Check patterns - order matters! More specific patterns first.
 	if interfacePattern.MatchString(word) {
@@ -1184,18 +1184,18 @@ func (l *Lexer) detectParseMode() ParseMode {
 }
 
 // IsPrompt checks if the input matches a JunOS CLI prompt pattern.
-// Matches formats like "user@router>" or "[edit] user@router#"
+// Matches formats like "user@router>" or "[edit] user@router#".
 func IsPrompt(input string) bool {
 	return promptPattern.MatchString(strings.TrimSpace(input))
 }
 
-// SetParseMode explicitly sets the parsing mode
+// SetParseMode explicitly sets the parsing mode.
 func (l *Lexer) SetParseMode(mode ParseMode) {
 	l.parseMode = mode
 	l.detectedMode = true
 }
 
-// GetParseMode returns the current parse mode
+// GetParseMode returns the current parse mode.
 func (l *Lexer) GetParseMode() ParseMode {
 	return l.parseMode
 }

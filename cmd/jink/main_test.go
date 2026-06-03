@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestCLIHelp tests that --help returns usage information
+// TestCLIHelp tests that --help returns usage information.
 func TestCLIHelp(t *testing.T) {
 	cmd := exec.Command("go", "run", ".", "--help")
 	output, _ := cmd.CombinedOutput()
@@ -25,7 +25,7 @@ func TestCLIHelp(t *testing.T) {
 	}
 }
 
-// TestCLIVersion tests that --version returns version information
+// TestCLIVersion tests that --version returns version information.
 func TestCLIVersion(t *testing.T) {
 	cmd := exec.Command("go", "run", ".", "--version")
 	output, err := cmd.CombinedOutput()
@@ -39,7 +39,7 @@ func TestCLIVersion(t *testing.T) {
 	}
 }
 
-// TestCLIPipedInput tests highlighting of piped input
+// TestCLIPipedInput tests highlighting of piped input.
 func TestCLIPipedInput(t *testing.T) {
 	input := "set interfaces ge-0/0/0 unit 0 family inet address 192.168.1.1/24"
 
@@ -67,7 +67,7 @@ func TestCLIPipedInput(t *testing.T) {
 	}
 }
 
-// TestCLINoHighlight tests the --no-highlight option
+// TestCLINoHighlight tests the --no-highlight option.
 func TestCLINoHighlight(t *testing.T) {
 	input := "set interfaces ge-0/0/0 unit 0 family inet address 192.168.1.1/24"
 
@@ -92,7 +92,7 @@ func TestCLINoHighlight(t *testing.T) {
 	}
 }
 
-// TestCLIThemeOption tests theme selection
+// TestCLIThemeOption tests theme selection.
 func TestCLIThemeOption(t *testing.T) {
 	themes := []string{"default", "solarized", "monokai", "nord"}
 	input := "set system host-name router"
@@ -116,7 +116,7 @@ func TestCLIThemeOption(t *testing.T) {
 	}
 }
 
-// TestCLIShortFlags tests short flag versions
+// TestCLIShortFlags tests short flag versions.
 func TestCLIShortFlags(t *testing.T) {
 	// Test -h (help)
 	cmd := exec.Command("go", "run", ".", "-h")
@@ -142,7 +142,7 @@ func TestCLIShortFlags(t *testing.T) {
 	}
 }
 
-// TestCLIMultilineInput tests highlighting of multi-line config
+// TestCLIMultilineInput tests highlighting of multi-line config.
 func TestCLIMultilineInput(t *testing.T) {
 	input := `set system host-name router
 set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/24
@@ -175,7 +175,7 @@ set protocols ospf area 0.0.0.0 interface ge-0/0/0.0`
 	}
 }
 
-// TestCLIHierarchicalConfig tests hierarchical config format
+// TestCLIHierarchicalConfig tests hierarchical config format.
 func TestCLIHierarchicalConfig(t *testing.T) {
 	input := `system {
     host-name router;
@@ -208,7 +208,7 @@ func TestCLIHierarchicalConfig(t *testing.T) {
 	}
 }
 
-// TestCLIBinaryBuilds tests that the binary builds correctly
+// TestCLIBinaryBuilds tests that the binary builds correctly.
 func TestCLIBinaryBuilds(t *testing.T) {
 	// Create temp directory for binary
 	tmpDir, err := os.MkdirTemp("", "jink-test")

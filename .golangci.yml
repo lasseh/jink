@@ -1,0 +1,57 @@
+# golangci-lint v2 configuration
+# Run with: make lint
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard # errcheck, govet, staticcheck, ineffassign, unused
+  enable:
+    - gocritic
+    - revive
+    - errname
+    - errorlint
+    - exhaustive
+    - goconst
+    - godot
+    - misspell
+    - noctx
+    - prealloc
+    - unconvert
+    - unparam
+    - wastedassign
+  settings:
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    exhaustive:
+      default-signifies-exhaustive: true
+  exclusions:
+    rules:
+      # Tests legitimately spawn helper processes and repeat literal fixtures;
+      # context-propagation and string-deduplication rules add no value there.
+      - path: _test\.go
+        linters:
+          - noctx
+          - goconst
+
+issues:
+  # Report every finding (project convention) rather than golangci's defaults.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/lasseh

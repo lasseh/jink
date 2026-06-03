@@ -12,7 +12,7 @@ import (
 	"github.com/lasseh/jink/terminal"
 )
 
-// version is set via ldflags at build time (see Makefile)
+// version is set via ldflags at build time (see Makefile).
 var version = "dev"
 
 const usage = `jink - ink your JunOS config
@@ -107,7 +107,7 @@ func main() {
 	}
 }
 
-func highlightStdin(theme *highlighter.Theme, disabled bool, force bool) error {
+func highlightStdin(theme *highlighter.Theme, disabled, force bool) error {
 	// Check if stdin is a terminal (no pipe)
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) != 0 {
@@ -124,13 +124,14 @@ func highlightStdin(theme *highlighter.Theme, disabled bool, force bool) error {
 
 	for {
 		line, err := reader.ReadString('\n')
-		if len(line) > 0 {
-			if disabled {
+		if line != "" {
+			switch {
+			case disabled:
 				fmt.Print(line)
-			} else if detectedJunOS || force {
+			case detectedJunOS || force:
 				// Force mode or already detected - highlight everything
 				fmt.Print(hl.HighlightForced(line))
-			} else {
+			default:
 				// Auto-detect mode - check if this looks like JunOS
 				highlighted := hl.Highlight(line)
 				if highlighted != line {

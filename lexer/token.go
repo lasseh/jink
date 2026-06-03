@@ -1,6 +1,6 @@
 package lexer
 
-// TokenType represents the type of a lexical token
+// TokenType represents the type of a lexical token.
 type TokenType int
 
 const (
@@ -30,13 +30,13 @@ const (
 	TokenCommunity            // BGP communities
 	TokenValue                // Values after keywords (host-name, description, etc.)
 
-	// Show output semantic tokens
+	// Show output semantic tokens.
 	TokenStateGood    // up, Establ, Full, Master (green)
 	TokenStateBad     // down, Idle, Active, Connect (red)
 	TokenStateWarning // 2Way, ExStart, Exchange, Loading (yellow)
 	TokenStateNeutral // inactive, standby, backup (dim)
 
-	// Show output structural tokens
+	// Show output structural tokens.
 	TokenColumnHeader  // Table column headers
 	TokenStatusSymbol  // *, +, -, > (route markers)
 	TokenTimeDuration  // 1d 2:30:45, 1w2d, 0:05:10
@@ -45,7 +45,7 @@ const (
 	TokenRouteProtocol // [BGP/170], [OSPF/10], [Static/5]
 	TokenTableName     // inet.0, inet6.0, mpls.0
 
-	// Prompt tokens
+	// Prompt tokens.
 	TokenPromptUser     // username in prompt
 	TokenPromptAt       // @ separator
 	TokenPromptHostOper // hostname in operational mode
@@ -54,13 +54,13 @@ const (
 	TokenPromptConf     // # (configuration mode prompt char)
 	TokenPromptEdit     // [edit ...] context indicator
 
-	// Diff tokens (show | compare output)
+	// Diff tokens (show | compare output).
 	TokenDiffAdd     // + lines (added) - green
 	TokenDiffRemove  // - lines (removed) - red
 	TokenDiffContext // [edit ...] context headers - cyan/blue
 )
 
-// Token represents a single lexical token
+// Token represents a single lexical token.
 type Token struct {
 	Type   TokenType
 	Value  string
@@ -119,7 +119,7 @@ var tokenTypeNames = [...]string{
 	TokenDiffContext:    "DiffContext",
 }
 
-// String returns a string representation of the token type
+// String returns a string representation of the token type.
 func (t TokenType) String() string {
 	if int(t) >= 0 && int(t) < len(tokenTypeNames) {
 		if name := tokenTypeNames[t]; name != "" {

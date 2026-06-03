@@ -10,11 +10,12 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
-	"github.com/lasseh/jink/highlighter"
 	"golang.org/x/term"
+
+	"github.com/lasseh/jink/highlighter"
 )
 
-// Buffer size constants
+// Buffer size constants.
 const (
 	readBufferSize = 32 * 1024 // Size of the read buffer from PTY
 	lineBufferSize = 4096      // Initial capacity for line buffer
@@ -26,14 +27,14 @@ var (
 	debugMu sync.RWMutex
 )
 
-// SetDebug enables or disables debug output to stderr
+// SetDebug enables or disables debug output to stderr.
 func SetDebug(enabled bool) {
 	debugMu.Lock()
 	defer debugMu.Unlock()
 	debug = enabled
 }
 
-// IsDebug returns whether debug mode is enabled
+// IsDebug returns whether debug mode is enabled.
 func IsDebug() bool {
 	debugMu.RLock()
 	defer debugMu.RUnlock()
@@ -48,9 +49,12 @@ type Terminal struct {
 	enabled     bool
 }
 
-// New creates a new Terminal for the given command
+// New creates a new Terminal for the given command.
 func New(name string, args ...string) *Terminal {
-	cmd := exec.Command(name, args...)
+	// The wrapped command is long-lived; its lifecycle (start, resize signals,
+	// wait) is owned by Run(). Threading a context through this constructor
+	// would change the public API without giving us cancellation we can act on.
+	cmd := exec.Command(name, args...) //nolint:noctx // lifecycle managed by Run()
 	return &Terminal{
 		cmd:         cmd,
 		highlighter: highlighter.New(),
@@ -58,12 +62,12 @@ func New(name string, args ...string) *Terminal {
 	}
 }
 
-// SetTheme changes the highlighting theme
+// SetTheme changes the highlighting theme.
 func (t *Terminal) SetTheme(theme *highlighter.Theme) {
 	t.highlighter.SetTheme(theme)
 }
 
-// SetEnabled enables or disables highlighting
+// SetEnabled enables or disables highlighting.
 func (t *Terminal) SetEnabled(enabled bool) {
 	t.enabled = enabled
 }

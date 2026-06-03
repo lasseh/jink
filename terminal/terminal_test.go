@@ -213,7 +213,7 @@ func TestConstants(t *testing.T) {
 	}
 }
 
-// mockReader allows testing error handling in processOutput
+// mockReader allows testing error handling in processOutput.
 type mockReader struct {
 	data    []byte
 	pos     int

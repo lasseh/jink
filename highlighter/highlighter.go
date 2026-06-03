@@ -31,7 +31,7 @@ func New() *Highlighter {
 	}
 }
 
-// NewWithTheme creates a new Highlighter with a specific theme
+// NewWithTheme creates a new Highlighter with a specific theme.
 func NewWithTheme(theme *Theme) *Highlighter {
 	return &Highlighter{
 		theme:   theme,
@@ -103,7 +103,7 @@ func (h *Highlighter) HighlightForced(input string) string {
 	return h.highlightTokens(input)
 }
 
-// highlightTokens tokenizes and colorizes the input while preserving cursor control sequences
+// highlightTokens tokenizes and colorizes the input while preserving cursor control sequences.
 func (h *Highlighter) highlightTokens(input string) string {
 	// Fast path: most lines contain no escape sequences, so skip the segment
 	// split (one slice alloc + extra buffer copies) and tokenize directly.
@@ -129,14 +129,14 @@ func (h *Highlighter) highlightTokens(input string) string {
 	return buf.String()
 }
 
-// highlightTokensCleaned tokenizes and colorizes already-cleaned input
+// highlightTokensCleaned tokenizes and colorizes already-cleaned input.
 func (h *Highlighter) highlightTokensCleaned(cleaned string) string {
 	lex := lexer.New(cleaned)
 	tokens := lex.Tokenize()
 	return h.renderTokens(tokens)
 }
 
-// renderTokens applies theme colors to a slice of tokens and returns the colorized string
+// renderTokens applies theme colors to a slice of tokens and returns the colorized string.
 func (h *Highlighter) renderTokens(tokens []lexer.Token) string {
 	h.mu.RLock()
 	theme := h.theme
@@ -156,12 +156,12 @@ func (h *Highlighter) renderTokens(tokens []lexer.Token) string {
 	return buf.String()
 }
 
-// HighlightLine highlights a single line (useful for streaming)
+// HighlightLine highlights a single line (useful for streaming).
 func (h *Highlighter) HighlightLine(line string) string {
 	return h.Highlight(line)
 }
 
-// HighlightLines highlights multiple lines preserving line structure
+// HighlightLines highlights multiple lines preserving line structure.
 func (h *Highlighter) HighlightLines(lines []string) []string {
 	result := make([]string, len(lines))
 	for i, line := range lines {
@@ -170,7 +170,7 @@ func (h *Highlighter) HighlightLines(lines []string) []string {
 	return result
 }
 
-// JunOS detection indicator lists
+// JunOS detection indicator lists.
 var (
 	configIndicators = []string{
 		"set ", "delete ", "show ", "edit ",
@@ -194,7 +194,7 @@ var (
 	commandPrefixes = []string{"set ", "delete ", "show ", "edit ", "request ", "##"}
 )
 
-// looksLikeJunOS performs a quick check to see if text appears to be JunOS config or show output
+// looksLikeJunOS performs a quick check to see if text appears to be JunOS config or show output.
 func (h *Highlighter) looksLikeJunOS(input string) bool {
 	if h.isPromptLine(input) {
 		return true
@@ -221,7 +221,7 @@ func (h *Highlighter) looksLikeJunOS(input string) bool {
 	return false
 }
 
-// isPromptLine checks if the input looks like a JunOS CLI prompt
+// isPromptLine checks if the input looks like a JunOS CLI prompt.
 func (h *Highlighter) isPromptLine(input string) bool {
 	// Check for JunOS CLI prompts (user@hostname> or user@hostname#, possibly with command)
 	if lexer.IsPrompt(input) {
@@ -252,7 +252,7 @@ func (h *Highlighter) isPromptLine(input string) bool {
 	return validBefore && validAfter
 }
 
-// hasConfigIndicators checks for common JunOS config keywords/patterns
+// hasConfigIndicators checks for common JunOS config keywords/patterns.
 func (h *Highlighter) hasConfigIndicators(lower string) bool {
 	for _, indicator := range configIndicators {
 		if strings.Contains(lower, indicator) {
@@ -262,7 +262,7 @@ func (h *Highlighter) hasConfigIndicators(lower string) bool {
 	return false
 }
 
-// hasShowIndicators checks for show command output patterns
+// hasShowIndicators checks for show command output patterns.
 func (h *Highlighter) hasShowIndicators(lower string) bool {
 	for _, indicator := range showIndicators {
 		if strings.Contains(lower, indicator) {
@@ -272,7 +272,7 @@ func (h *Highlighter) hasShowIndicators(lower string) bool {
 	return false
 }
 
-// hasStructuralPatterns checks for typical JunOS structure patterns
+// hasStructuralPatterns checks for typical JunOS structure patterns.
 func (h *Highlighter) hasStructuralPatterns(input, lower string) bool {
 	if !strings.Contains(input, "{\n") && !strings.Contains(input, ";") {
 		return false
@@ -283,7 +283,7 @@ func (h *Highlighter) hasStructuralPatterns(input, lower string) bool {
 		strings.Contains(lower, "host-name")
 }
 
-// startsWithCommand checks if line starts with common JunOS commands
+// startsWithCommand checks if line starts with common JunOS commands.
 func (h *Highlighter) startsWithCommand(input string) bool {
 	trimmed := strings.TrimSpace(input)
 	lowerTrimmed := strings.ToLower(trimmed)
@@ -295,12 +295,12 @@ func (h *Highlighter) startsWithCommand(input string) bool {
 	return false
 }
 
-// isAlphanumeric checks if a byte is a letter or digit
+// isAlphanumeric checks if a byte is a letter or digit.
 func isAlphanumeric(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
 }
 
-// isAlphanumericOrDash checks if a byte is a letter, digit, or dash
+// isAlphanumericOrDash checks if a byte is a letter, digit, or dash.
 func isAlphanumericOrDash(ch byte) bool {
 	return isAlphanumeric(ch) || ch == '-'
 }
@@ -317,13 +317,13 @@ func (h *Highlighter) HighlightShowOutput(input string) string {
 	return h.renderTokens(tokens)
 }
 
-// segment represents either an escape sequence or text content
+// segment represents either an escape sequence or text content.
 type segment struct {
 	text     string
 	isEscape bool
 }
 
-// CSI sequence byte range constants
+// CSI sequence byte range constants.
 const (
 	csiParamStart = 0x20 // Space - start of parameter/intermediate bytes
 	csiParamEnd   = 0x3F // ? - end of parameter bytes
@@ -334,23 +334,23 @@ const (
 	csiBracket    = '['
 )
 
-// isCSIParamByte checks if byte is a CSI parameter or intermediate byte (0x20-0x3F)
+// isCSIParamByte checks if byte is a CSI parameter or intermediate byte (0x20-0x3F).
 func isCSIParamByte(b byte) bool {
 	return b >= csiParamStart && b <= csiParamEnd
 }
 
-// isCSIFinalByte checks if byte is a CSI final byte (0x40-0x7E)
+// isCSIFinalByte checks if byte is a CSI final byte (0x40-0x7E).
 func isCSIFinalByte(b byte) bool {
 	return b >= csiFinalStart && b <= csiFinalEnd
 }
 
-// isCSIIntermediateByte checks if byte is a CSI intermediate byte (0x20-0x2F)
+// isCSIIntermediateByte checks if byte is a CSI intermediate byte (0x20-0x2F).
 func isCSIIntermediateByte(b byte) bool {
 	return b >= csiParamStart && b <= csiIntermEnd
 }
 
 // skipCSISequence skips a CSI sequence starting at position i (after \033[)
-// Returns the new position after the sequence
+// Returns the new position after the sequence.
 func skipCSISequence(input string, i int) int {
 	// Skip parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
 	for i < len(input) && isCSIParamByte(input[i]) {
@@ -364,7 +364,7 @@ func skipCSISequence(input string, i int) int {
 }
 
 // skipOtherEscapeSequence skips non-CSI escape sequences
-// Returns the new position after the sequence
+// Returns the new position after the sequence.
 func skipOtherEscapeSequence(input string, i int) int {
 	// Skip intermediate bytes (0x20-0x2F)
 	for i < len(input) && isCSIIntermediateByte(input[i]) {
@@ -378,7 +378,7 @@ func skipOtherEscapeSequence(input string, i int) int {
 }
 
 // extractSegments splits input into escape sequences and text segments
-// This allows us to preserve cursor control sequences while highlighting text
+// This allows us to preserve cursor control sequences while highlighting text.
 func extractSegments(input string) []segment {
 	var segments []segment
 	var textBuf bytes.Buffer
@@ -434,7 +434,7 @@ func StripANSI(input string) string {
 	return buf.String()
 }
 
-// HasANSI checks if the input contains ANSI escape codes
+// HasANSI checks if the input contains ANSI escape codes.
 func HasANSI(input string) bool {
 	return strings.Contains(input, "\033[")
 }

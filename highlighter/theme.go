@@ -6,7 +6,7 @@ import (
 	"github.com/lasseh/jink/lexer"
 )
 
-// ANSI color codes
+// ANSI color codes.
 const (
 	Reset     = "\033[0m"
 	Bold      = "\033[1m"
@@ -14,7 +14,7 @@ const (
 	Italic    = "\033[3m"
 	Underline = "\033[4m"
 
-	// Foreground colors
+	// Foreground colors.
 	Black   = "\033[30m"
 	Red     = "\033[31m"
 	Green   = "\033[32m"
@@ -24,7 +24,7 @@ const (
 	Cyan    = "\033[36m"
 	White   = "\033[37m"
 
-	// Bright foreground colors
+	// Bright foreground colors.
 	BrightBlack   = "\033[90m"
 	BrightRed     = "\033[91m"
 	BrightGreen   = "\033[92m"
@@ -34,17 +34,17 @@ const (
 	BrightCyan    = "\033[96m"
 	BrightWhite   = "\033[97m"
 
-	// 256-color mode
+	// 256-color mode.
 	Color256Prefix = "\033[38;5;"
 	Color256Suffix = "m"
 )
 
-// Color256 returns an ANSI escape for 256-color mode
+// Color256 returns an ANSI escape for 256-color mode.
 func Color256(n int) string {
 	return Color256Prefix + strconv.Itoa(n) + Color256Suffix
 }
 
-// RGB returns an ANSI escape for true color mode
+// RGB returns an ANSI escape for true color mode.
 func RGB(r, g, b int) string {
 	return "\033[38;2;" + strconv.Itoa(r) + ";" + strconv.Itoa(g) + ";" + strconv.Itoa(b) + "m"
 }
@@ -94,7 +94,7 @@ type Palette struct {
 }
 
 // buildTheme creates a Theme from a Palette by mapping semantic colors to token types.
-func buildTheme(p Palette) *Theme {
+func buildTheme(p *Palette) *Theme {
 	return &Theme{
 		colors: map[lexer.TokenType]string{
 			// Config tokens
@@ -161,12 +161,12 @@ type Theme struct {
 	colors map[lexer.TokenType]string
 }
 
-// DefaultTheme returns the default theme (Tokyo Night)
+// DefaultTheme returns the default theme (Tokyo Night).
 func DefaultTheme() *Theme {
 	return TokyoNightTheme()
 }
 
-// TokyoNightTheme returns a Tokyo Night inspired theme
+// TokyoNightTheme returns a Tokyo Night inspired theme.
 func TokyoNightTheme() *Theme {
 	foreground := RGB(192, 202, 245) // #c0caf5
 	comment := RGB(86, 95, 137)      // #565f89
@@ -180,7 +180,7 @@ func TokyoNightTheme() *Theme {
 	purple := RGB(157, 124, 216)     // #9d7cd8
 	teal := RGB(115, 218, 202)       // #73daca
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        magenta,
@@ -214,9 +214,9 @@ func TokyoNightTheme() *Theme {
 	})
 }
 
-// VibrantTheme returns a vibrant color theme (original default)
+// VibrantTheme returns a vibrant color theme (original default).
 func VibrantTheme() *Theme {
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     White,
 		Comment:        Dim + BrightBlack,
 		Command:        BrightYellow,
@@ -250,7 +250,7 @@ func VibrantTheme() *Theme {
 	})
 }
 
-// SolarizedDarkTheme returns a Solarized Dark theme
+// SolarizedDarkTheme returns a Solarized Dark theme.
 func SolarizedDarkTheme() *Theme {
 	base01 := Color256(240) // comments
 	base0 := Color256(244)  // body text
@@ -263,7 +263,7 @@ func SolarizedDarkTheme() *Theme {
 	cyan := Color256(37)
 	green := Color256(64)
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     base0,
 		Comment:        base01,
 		Command:        yellow,
@@ -297,7 +297,7 @@ func SolarizedDarkTheme() *Theme {
 	})
 }
 
-// MonokaiTheme returns a Monokai-inspired theme
+// MonokaiTheme returns a Monokai-inspired theme.
 func MonokaiTheme() *Theme {
 	pink := Color256(197)
 	green := Color256(148)
@@ -309,7 +309,7 @@ func MonokaiTheme() *Theme {
 	white := Color256(231)
 	red := Color256(196)
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     white,
 		Comment:        gray,
 		Command:        pink,
@@ -343,7 +343,7 @@ func MonokaiTheme() *Theme {
 	})
 }
 
-// NordTheme returns a Nord theme
+// NordTheme returns a Nord theme.
 func NordTheme() *Theme {
 	nord4 := Color256(252)  // snow storm - main text
 	nord7 := Color256(109)  // frost - cyan
@@ -356,7 +356,7 @@ func NordTheme() *Theme {
 	nord15 := Color256(139) // aurora - purple
 	nordComment := Color256(60)
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     nord4,
 		Comment:        nordComment,
 		Command:        nord13,
@@ -408,7 +408,7 @@ func CatppuccinMochaTheme() *Theme {
 	mauve := RGB(203, 166, 247)    // #cba6f7
 	pink := RGB(245, 194, 231)     // #f5c2e7
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     text,
 		Comment:        overlay0,
 		Command:        mauve,
@@ -455,7 +455,7 @@ func DraculaTheme() *Theme {
 	red := RGB(255, 85, 85)          // #ff5555
 	yellow := RGB(241, 250, 140)     // #f1fa8c
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        pink,
@@ -502,7 +502,7 @@ func GruvboxDarkTheme() *Theme {
 	aqua := RGB(142, 192, 124)       // #8ec07c
 	orange := RGB(254, 128, 25)      // #fe8019
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        yellow,
@@ -549,7 +549,7 @@ func OneDarkTheme() *Theme {
 	cyan := RGB(86, 182, 194)        // #56b6c2
 	orange := RGB(209, 154, 102)     // #d19a66
 
-	return buildTheme(Palette{
+	return buildTheme(&Palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        purple,
@@ -583,7 +583,7 @@ func OneDarkTheme() *Theme {
 	})
 }
 
-// GetColor returns the color string for a token type
+// GetColor returns the color string for a token type.
 func (t *Theme) GetColor(tokenType lexer.TokenType) string {
 	if color, ok := t.colors[tokenType]; ok {
 		return color
@@ -597,7 +597,7 @@ func ThemeNames() []string {
 }
 
 // ThemeByName returns a theme by its name. Returns DefaultTheme for unknown names.
-// Supported names: tokyonight, vibrant, solarized, monokai, nord, catppuccin, dracula, gruvbox, onedark
+// Supported names: tokyonight, vibrant, solarized, monokai, nord, catppuccin, dracula, gruvbox, onedark.
 func ThemeByName(name string) *Theme {
 	switch name {
 	case "tokyonight", "tokyo-night", "tokyo":
@@ -623,7 +623,7 @@ func ThemeByName(name string) *Theme {
 	}
 }
 
-// SetColor allows customizing a color for a token type
+// SetColor allows customizing a color for a token type.
 func (t *Theme) SetColor(tokenType lexer.TokenType, color string) {
 	t.colors[tokenType] = color
 }
