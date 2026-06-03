@@ -179,8 +179,12 @@ make demo-all    # All themes side by side
 make build       # Build binaries to build/
 make install     # Install to Go bin directory
 make test        # Run tests
+make lint        # Run golangci-lint
+make check       # Run all checks (lint + tests)
 make clean       # Clean build artifacts
 ```
+
+After cloning, run `make hooks` once to enable the pre-push hook, which runs `make check` before every push (bypass with `git push --no-verify`).
 
 ## Command Line Reference
 
