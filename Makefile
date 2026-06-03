@@ -1,4 +1,4 @@
-.PHONY: all build build-linux rebuild install clean test vet fmt lint check hooks deps release release-snapshot demo demo-set demo-all help
+.PHONY: all build build-linux rebuild install clean test vet fmt lint bench check hooks deps release release-snapshot demo demo-set demo-all help
 
 # Project info
 BINARY     := jink
@@ -66,6 +66,10 @@ lint:
 	@which golangci-lint > /dev/null || (echo "Install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" && exit 1)
 	golangci-lint run
 
+# Run benchmarks (hot-path lexer/highlighter)
+bench:
+	go test -run '^$$' -bench . -benchmem ./...
+
 # Run all checks (lint + tests) - used by the pre-push hook
 check: lint test
 
@@ -116,6 +120,7 @@ help:
 	@echo "  make vet       Run go vet"
 	@echo "  make fmt       Format code"
 	@echo "  make lint      Run golangci-lint"
+	@echo "  make bench     Run benchmarks"
 	@echo "  make check     Run all checks (lint + tests)"
 	@echo "  make hooks     Install the pre-push git hook"
 	@echo ""
