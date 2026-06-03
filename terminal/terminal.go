@@ -156,8 +156,7 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 			}
 
 			// Process byte by byte
-			for i := 0; i < n; i++ {
-				b := data[i]
+			for _, b := range data {
 				lineBuf = append(lineBuf, b)
 
 				// Flush on newline or when buffer gets large
@@ -196,7 +195,7 @@ func (t *Terminal) writeOutput(w io.Writer, data []byte) {
 		output = string(data)
 	}
 
-	if _, err := w.Write([]byte(output)); err != nil && IsDebug() {
+	if _, err := io.WriteString(w, output); err != nil && IsDebug() {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Write error: %v\n", err)
 	}
 }
