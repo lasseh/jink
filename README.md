@@ -195,6 +195,8 @@ OPTIONS:
     -f, --force           Always highlight (skip auto-detection)
     -t, --theme <name>    Color theme (see Themes section)
     -n, --no-highlight    Disable highlighting (pass-through mode)
+        --color <when>    When to colorize: auto (default), always, never
+                          auto = only when stdout is a terminal and NO_COLOR is unset
     -v, --version         Show version
     -h, --help            Show help
 

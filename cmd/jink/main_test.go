@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -43,7 +45,9 @@ func TestCLIVersion(t *testing.T) {
 func TestCLIPipedInput(t *testing.T) {
 	input := "set interfaces ge-0/0/0 unit 0 family inet address 192.168.1.1/24"
 
-	cmd := exec.Command("go", "run", ".")
+	// Tests run with stdout as a pipe, so request color explicitly (auto would
+	// correctly suppress it).
+	cmd := exec.Command("go", "run", ".", "--color=always")
 	cmd.Stdin = strings.NewReader(input)
 
 	output, err := cmd.CombinedOutput()
@@ -99,7 +103,7 @@ func TestCLIThemeOption(t *testing.T) {
 
 	for _, theme := range themes {
 		t.Run(theme, func(t *testing.T) {
-			cmd := exec.Command("go", "run", ".", "-t", theme)
+			cmd := exec.Command("go", "run", ".", "-t", theme, "--color=always")
 			cmd.Stdin = strings.NewReader(input)
 
 			output, err := cmd.CombinedOutput()
@@ -148,7 +152,9 @@ func TestCLIMultilineInput(t *testing.T) {
 set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/24
 set protocols ospf area 0.0.0.0 interface ge-0/0/0.0`
 
-	cmd := exec.Command("go", "run", ".")
+	// Tests run with stdout as a pipe, so request color explicitly (auto would
+	// correctly suppress it).
+	cmd := exec.Command("go", "run", ".", "--color=always")
 	cmd.Stdin = strings.NewReader(input)
 
 	output, err := cmd.CombinedOutput()
@@ -184,7 +190,9 @@ func TestCLIHierarchicalConfig(t *testing.T) {
     }
 }`
 
-	cmd := exec.Command("go", "run", ".")
+	// Tests run with stdout as a pipe, so request color explicitly (auto would
+	// correctly suppress it).
+	cmd := exec.Command("go", "run", ".", "--color=always")
 	cmd.Stdin = strings.NewReader(input)
 
 	output, err := cmd.CombinedOutput()
@@ -240,5 +248,64 @@ func TestCLIBinaryBuilds(t *testing.T) {
 	}
 	if !strings.Contains(string(output), "jink version") {
 		t.Error("binary should output version")
+	}
+}
+
+// TestColorAutoSuppressedWhenPiped pins the #1 fix: with stdout as a pipe and
+// no --color override, auto mode must not emit ANSI escape codes.
+func TestColorAutoSuppressedWhenPiped(t *testing.T) {
+	cmd := exec.Command("go", "run", ".")
+	cmd.Stdin = strings.NewReader("set system host-name r1;")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("run failed: %v\n%s", err, out)
+	}
+	if strings.Contains(string(out), "\033[") {
+		t.Errorf("auto color into a pipe should not emit ANSI; got %q", out)
+	}
+}
+
+func TestResolveHighlight(t *testing.T) {
+	tests := []struct {
+		name        string
+		when        string
+		noHighlight bool
+		tty         bool
+		noColor     bool
+		want        bool
+	}{
+		{"auto on tty", "auto", false, true, false, true},
+		{"auto into pipe", "auto", false, false, false, false},
+		{"auto on tty with NO_COLOR", "auto", false, true, true, false},
+		{"always into pipe", "always", false, false, false, true},
+		{"always overrides NO_COLOR", "always", false, true, true, true},
+		{"never on tty", "never", false, true, false, false},
+		{"no-highlight beats always", "always", true, true, false, false},
+		{"unknown when treated as auto", "bogus", false, true, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveHighlight(tt.when, tt.noHighlight, tt.tty, tt.noColor)
+			if got != tt.want {
+				t.Errorf("resolveHighlight(%q, noHighlight=%v, tty=%v, noColor=%v) = %v, want %v",
+					tt.when, tt.noHighlight, tt.tty, tt.noColor, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExitCodeFor(t *testing.T) {
+	if got := exitCodeFor(nil); got != 0 {
+		t.Errorf("nil error: got %d, want 0", got)
+	}
+	if got := exitCodeFor(errors.New("boom")); got != 1 {
+		t.Errorf("generic error: got %d, want 1", got)
+	}
+	// A real *exec.ExitError carries the child's code; wrap it the way
+	// terminal.Run does to confirm exitCodeFor unwraps through fmt.Errorf.
+	err := exec.Command("sh", "-c", "exit 7").Run()
+	wrapped := fmt.Errorf("command finished: %w", err)
+	if got := exitCodeFor(wrapped); got != 7 {
+		t.Errorf("wrapped exit error: got %d, want 7", got)
 	}
 }
