@@ -334,6 +334,7 @@ const (
 	csiFinalStart = 0x40 // @ - start of final bytes
 	csiFinalEnd   = 0x7E // ~ - end of final bytes
 	csiIntermEnd  = 0x2F // / - end of intermediate bytes
+	escFinalStart = 0x30 // 0 - start of non-CSI escape final bytes
 	escapeChar    = '\033'
 	csiBracket    = '['
 	belChar       = '\a'
@@ -405,6 +406,11 @@ func escapeEnd(input string, i int) (int, bool) {
 		}
 		if j >= len(input) {
 			return len(input), false
+		}
+		if input[j] < escFinalStart || input[j] > csiFinalEnd {
+			// Not a valid final byte (e.g. another ESC or \r); the ESC
+			// stands alone and the next byte is scanned normally.
+			return i + 1, true
 		}
 		return j + 1, true
 	}

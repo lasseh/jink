@@ -224,7 +224,9 @@ func TestStripANSI(t *testing.T) {
 		// OSC (window title) terminated by BEL or ST
 		{"\033]0;title\007set system", "set system"},
 		{"\033]0;title\033\\set system", "set system"},
-		{"\033=keypad", "keypad"}, // Two-byte escape
+		{"\033=keypad", "keypad"},            // Two-byte escape
+		{"\033\033[31mred", "red"},           // Stray ESC before a CSI
+		{"\033\r\nprompt> ", "\r\nprompt> "}, // Stray ESC before control chars
 	}
 
 	for _, tt := range tests {
@@ -282,7 +284,7 @@ func TestHighlightForcedPreservesOSC(t *testing.T) {
 	// Routers and shells set the window title with OSC sequences; their
 	// payload must pass through untouched, not get colored as text.
 	h := New()
-	for _, osc := range []string{"\033]0;user@router\007", "\033]0;user@router\033\\"} {
+	for _, osc := range []string{"\033]0;user@router\007", "\033]0;user@router\033\\", "\033\033[31m"} {
 		result := h.HighlightForced(osc + "set system")
 		if !strings.HasPrefix(result, osc) {
 			t.Errorf("HighlightForced(%q) corrupted the OSC sequence: %q", osc+"set system", result)
