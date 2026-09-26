@@ -221,6 +221,10 @@ func TestStripANSI(t *testing.T) {
 		{"\033[K\rprompt> cmd", "\rprompt> cmd"}, // Clear + carriage return + text
 		{"before\033[Kafter", "beforeafter"},     // Mid-string clear
 		{"\033[32mgreen\033[K\033[0m", "green"},  // Color + clear + reset
+		// OSC (window title) terminated by BEL or ST
+		{"\033]0;title\007set system", "set system"},
+		{"\033]0;title\033\\set system", "set system"},
+		{"\033=keypad", "keypad"}, // Two-byte escape
 	}
 
 	for _, tt := range tests {
@@ -242,6 +246,7 @@ func TestExtractSegments(t *testing.T) {
 		{"\033[31mred\033[0m", 3, "color + text + reset"},
 		{"hello\033[Kworld", 3, "text + clear + text"},
 		{"", 0, "empty string"},
+		{"\033]0;title\007set", 2, "OSC title + text"},
 	}
 
 	for _, tt := range tests {
@@ -273,6 +278,42 @@ func TestHighlightForcedPreservesEscapeSequences(t *testing.T) {
 	}
 }
 
+func TestHighlightForcedPreservesOSC(t *testing.T) {
+	// Routers and shells set the window title with OSC sequences; their
+	// payload must pass through untouched, not get colored as text.
+	h := New()
+	for _, osc := range []string{"\033]0;user@router\007", "\033]0;user@router\033\\"} {
+		result := h.HighlightForced(osc + "set system")
+		if !strings.HasPrefix(result, osc) {
+			t.Errorf("HighlightForced(%q) corrupted the OSC sequence: %q", osc+"set system", result)
+		}
+	}
+}
+
+func TestIncompleteEscapeStart(t *testing.T) {
+	tests := []struct {
+		input string
+		want  int
+	}{
+		{"plain text", -1},
+		{"", -1},
+		{"abc \033[10D", -1},
+		{"abc \033", 4},
+		{"abc \033[1", 4},
+		{"abc \033]0;title", 4},
+		{"abc \033]0;title\033", 4},
+		{"\033]0;title\007x", -1},
+		{"\033]0;title\033\\x", -1},
+		{"\033[31mred\033[0m \033[", 13},
+	}
+
+	for _, tt := range tests {
+		if got := IncompleteEscapeStart(tt.input); got != tt.want {
+			t.Errorf("IncompleteEscapeStart(%q) = %d, want %d", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestHasANSI(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -283,6 +324,7 @@ func TestHasANSI(t *testing.T) {
 		{"\033[1mtext", true},
 		{"no escape", false},
 		{"", false},
+		{"\033]0;title\007", true},
 	}
 
 	for _, tt := range tests {

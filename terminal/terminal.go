@@ -171,10 +171,18 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 			}
 
 			// Flush partial lines (prompts) - also highlighted
-			// Cursor control chars like \r are preserved by the lexer
+			// Cursor control chars like \r are preserved by the lexer.
+			// An escape sequence cut off by the read boundary is held back
+			// so the next read can complete it.
 			if len(lineBuf) > 0 {
-				t.writeOutput(w, lineBuf)
-				lineBuf = lineBuf[:0]
+				flush := len(lineBuf)
+				if k := highlighter.IncompleteEscapeStart(string(lineBuf)); k >= 0 {
+					flush = k
+				}
+				if flush > 0 {
+					t.writeOutput(w, lineBuf[:flush])
+				}
+				lineBuf = append(lineBuf[:0], lineBuf[flush:]...)
 			}
 		}
 
@@ -184,6 +192,11 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 			}
 			break
 		}
+	}
+
+	// Output ended mid-sequence; pass the remainder through as-is
+	if len(lineBuf) > 0 {
+		t.writeOutput(w, lineBuf)
 	}
 }
 

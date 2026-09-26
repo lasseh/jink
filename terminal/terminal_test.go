@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/iotest"
 
 	"github.com/lasseh/jink/highlighter"
 )
@@ -156,6 +157,27 @@ func TestProcessOutputPartialLine(t *testing.T) {
 
 	if output.String() != input {
 		t.Errorf("expected %q, got %q", input, output.String())
+	}
+}
+
+func TestProcessOutputEscapeSplitAcrossReads(t *testing.T) {
+	// A PTY read can end in the middle of an escape sequence. The partial
+	// sequence must be held for the next read, not highlighted as text.
+	term := New("echo", "test")
+	escapes := []string{"\033[10D", "\033]0;user@router\007", "\033]0;title\033\\"}
+	input := "abc " + strings.Join(escapes, "set system ") + "xyz"
+
+	var output bytes.Buffer
+	term.processOutput(iotest.OneByteReader(strings.NewReader(input)), &output)
+
+	got := output.String()
+	for _, esc := range escapes {
+		if !strings.Contains(got, esc) {
+			t.Errorf("escape %q was broken by read splitting; output: %q", esc, got)
+		}
+	}
+	if highlighter.StripANSI(got) != highlighter.StripANSI(input) {
+		t.Errorf("visible text changed:\n  input:  %q\n  output: %q", highlighter.StripANSI(input), highlighter.StripANSI(got))
 	}
 }
 

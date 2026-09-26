@@ -336,6 +336,8 @@ const (
 	csiIntermEnd  = 0x2F // / - end of intermediate bytes
 	escapeChar    = '\033'
 	csiBracket    = '['
+	belChar       = '\a'
+	stFinal       = '\\' // ESC \ is the String Terminator (ST)
 )
 
 // isCSIParamByte checks if byte is a CSI parameter or intermediate byte (0x20-0x3F).
@@ -353,32 +355,59 @@ func isCSIIntermediateByte(b byte) bool {
 	return b >= csiParamStart && b <= csiIntermEnd
 }
 
-// skipCSISequence skips a CSI sequence starting at position i (after \033[)
-// Returns the new position after the sequence.
-func skipCSISequence(input string, i int) int {
-	// Skip parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
-	for i < len(input) && isCSIParamByte(input[i]) {
-		i++
+// escapeEnd returns the position just past the escape sequence starting at
+// input[i] (an ESC byte), and whether the sequence is complete. It handles
+// CSI (ESC [), string sequences terminated by BEL or ST (OSC ESC ], DCS ESC P,
+// SOS ESC X, PM ESC ^, APC ESC _), and short escapes like ESC =.
+// An incomplete sequence runs to the end of input.
+func escapeEnd(input string, i int) (int, bool) {
+	j := i + 1
+	if j >= len(input) {
+		return len(input), false
 	}
-	// Skip the final byte (0x40-0x7E)
-	if i < len(input) && isCSIFinalByte(input[i]) {
-		i++
-	}
-	return i
-}
 
-// skipOtherEscapeSequence skips non-CSI escape sequences
-// Returns the new position after the sequence.
-func skipOtherEscapeSequence(input string, i int) int {
-	// Skip intermediate bytes (0x20-0x2F)
-	for i < len(input) && isCSIIntermediateByte(input[i]) {
-		i++
+	switch input[j] {
+	case csiBracket:
+		// Parameter and intermediate bytes, then one final byte
+		j++
+		for j < len(input) && isCSIParamByte(input[j]) {
+			j++
+		}
+		if j >= len(input) {
+			return len(input), false
+		}
+		if isCSIFinalByte(input[j]) {
+			j++
+		}
+		return j, true
+	case ']', 'P', 'X', '^', '_':
+		// String payload until BEL or ST
+		for j++; j < len(input); j++ {
+			if input[j] == belChar {
+				return j + 1, true
+			}
+			if input[j] == escapeChar {
+				if j+1 >= len(input) {
+					return len(input), false
+				}
+				if input[j+1] == stFinal {
+					return j + 2, true
+				}
+				// Any other escape aborts the string
+				return j, true
+			}
+		}
+		return len(input), false
+	default:
+		// Intermediate bytes, then one final byte
+		for j < len(input) && isCSIIntermediateByte(input[j]) {
+			j++
+		}
+		if j >= len(input) {
+			return len(input), false
+		}
+		return j + 1, true
 	}
-	// Skip final byte
-	if i < len(input) {
-		i++
-	}
-	return i
 }
 
 // extractSegments splits input into escape sequences and text segments
@@ -389,16 +418,15 @@ func extractSegments(input string) []segment {
 	i := 0
 
 	for i < len(input) {
-		if input[i] == escapeChar && i+1 < len(input) && input[i+1] == csiBracket {
+		if input[i] == escapeChar {
 			// Flush any accumulated text
 			if textBuf.Len() > 0 {
 				segments = append(segments, segment{text: textBuf.String(), isEscape: false})
 				textBuf.Reset()
 			}
 
-			// Extract CSI sequence
 			start := i
-			i = skipCSISequence(input, i+2) // +2 to skip \033[
+			i, _ = escapeEnd(input, i)
 			segments = append(segments, segment{text: input[start:i], isEscape: true})
 			continue
 		}
@@ -415,20 +443,15 @@ func extractSegments(input string) []segment {
 }
 
 // StripANSI removes ANSI escape codes from text.
-// Handles both SGR codes (colors, ending in 'm') and CSI sequences (cursor control, etc.)
+// Handles CSI sequences (colors, cursor control), OSC and other string
+// sequences (window titles), and short two-byte escapes.
 func StripANSI(input string) string {
 	var buf bytes.Buffer
 	i := 0
 
 	for i < len(input) {
-		if input[i] == escapeChar && i+1 < len(input) && input[i+1] == csiBracket {
-			// CSI sequence: \033[ followed by params and a final byte
-			i = skipCSISequence(input, i+2) // +2 to skip \033[
-			continue
-		}
 		if input[i] == escapeChar {
-			// Other escape sequence (OSC, etc.)
-			i = skipOtherEscapeSequence(input, i+1) // +1 to skip \033
+			i, _ = escapeEnd(input, i)
 			continue
 		}
 		buf.WriteByte(input[i])
@@ -438,7 +461,26 @@ func StripANSI(input string) string {
 	return buf.String()
 }
 
+// IncompleteEscapeStart returns the index where an unfinished escape sequence
+// at the end of input begins, or -1 if input ends cleanly. Streaming callers
+// hold those bytes back until the next read completes the sequence.
+func IncompleteEscapeStart(input string) int {
+	i := 0
+	for i < len(input) {
+		if input[i] != escapeChar {
+			i++
+			continue
+		}
+		end, complete := escapeEnd(input, i)
+		if !complete {
+			return i
+		}
+		i = end
+	}
+	return -1
+}
+
 // HasANSI checks if the input contains ANSI escape codes.
 func HasANSI(input string) bool {
-	return strings.Contains(input, "\033[")
+	return strings.IndexByte(input, escapeChar) >= 0
 }
