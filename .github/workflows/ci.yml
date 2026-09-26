@@ -39,10 +39,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # Pin golangci-lint to the version the repo's .golangci.yml targets so
-      # CI and local `make lint` agree.
       - name: Install golangci-lint
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.11.4
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$(go env GOPATH)/bin"
 
       - name: Lint
         run: "$(go env GOPATH)/bin/golangci-lint run"

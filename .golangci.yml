@@ -41,6 +41,11 @@ linters:
         linters:
           - noctx
           - goconst
+      # The keyword tables repeat JunOS keywords across sets by design;
+      # constants for map keys would only obscure them.
+      - path: lexer/lexer\.go
+        linters:
+          - goconst
 
 issues:
   # Report every finding (project convention) rather than golangci's defaults.
