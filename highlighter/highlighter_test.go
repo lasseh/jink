@@ -2,6 +2,7 @@ package highlighter
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/lasseh/jink/lexer"
@@ -412,6 +413,29 @@ func TestThemeSetColor(t *testing.T) {
 	if theme.GetColor(lexer.TokenCommand) != newColor {
 		t.Error("SetColor should update the color")
 	}
+}
+
+func TestThemeSetColorConcurrentWithHighlight(t *testing.T) {
+	// Highlighter is documented as safe for concurrent use; recoloring its
+	// theme while another goroutine renders must not race on the color map.
+	theme := DefaultTheme()
+	h := NewWithTheme(theme)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := range 2000 {
+			theme.SetColor(lexer.TokenType(i%50), "\033[35m")
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 2000 {
+			h.HighlightForced("set interfaces ge-0/0/0 unit 0")
+		}
+	}()
+	wg.Wait()
 }
 
 func TestThemeGetColorUnknown(t *testing.T) {

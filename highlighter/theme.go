@@ -2,6 +2,7 @@ package highlighter
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/lasseh/jink/lexer"
 )
@@ -158,6 +159,7 @@ func buildTheme(p *Palette) *Theme {
 // Use ThemeByName() to get a theme by name, or create custom themes
 // by modifying an existing theme with SetColor().
 type Theme struct {
+	mu     sync.RWMutex
 	colors map[lexer.TokenType]string
 }
 
@@ -585,10 +587,9 @@ func OneDarkTheme() *Theme {
 
 // GetColor returns the color string for a token type.
 func (t *Theme) GetColor(tokenType lexer.TokenType) string {
-	if color, ok := t.colors[tokenType]; ok {
-		return color
-	}
-	return ""
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.colors[tokenType]
 }
 
 // ThemeNames returns a list of available theme names.
@@ -625,5 +626,7 @@ func ThemeByName(name string) *Theme {
 
 // SetColor allows customizing a color for a token type.
 func (t *Theme) SetColor(tokenType lexer.TokenType, color string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.colors[tokenType] = color
 }

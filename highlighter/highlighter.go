@@ -142,9 +142,13 @@ func (h *Highlighter) renderTokens(tokens []lexer.Token) string {
 	theme := h.theme
 	h.mu.RUnlock()
 
+	// Hold the theme lock for the whole render rather than per token.
+	theme.mu.RLock()
+	defer theme.mu.RUnlock()
+
 	var buf bytes.Buffer
 	for _, token := range tokens {
-		color := theme.GetColor(token.Type)
+		color := theme.colors[token.Type]
 		if color != "" {
 			buf.WriteString(color)
 			buf.WriteString(token.Value)
