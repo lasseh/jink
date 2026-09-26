@@ -614,9 +614,10 @@ func (l *Lexer) tryTokenizePrompt(input string) []Token {
 		col += len(matches[7])
 	}
 
-	// Tokenize command after prompt if present (group 8)
+	// Tokenize command after prompt if present (group 8). Not trimmed: a
+	// trailing space or \r is part of the redraw and moves the cursor.
 	if matches[8] != "" {
-		cmdLexer := New(strings.TrimSpace(matches[8]))
+		cmdLexer := New(matches[8])
 		cmdTokens := cmdLexer.Tokenize()
 		for _, tok := range cmdTokens {
 			tok.Column = col
@@ -906,20 +907,9 @@ func (l *Lexer) scanWhitespace() Token {
 		l.advance()
 	}
 
-	value := l.input[start:l.pos]
-
-	// Reset per-line parser state on newlines. These flags track context
-	// within a single line (keyword/value/unit always appear together), so
-	// they must not leak across a line boundary.
-	if strings.Contains(value, "\n") {
-		l.firstWordOnLine = true
-		l.expectingValue = false
-		l.expectingUnit = false
-	}
-
 	return Token{
 		Type:   TokenText,
-		Value:  value,
+		Value:  l.input[start:l.pos],
 		Line:   startLine,
 		Column: startCol,
 	}
@@ -1115,6 +1105,13 @@ func (l *Lexer) advance() {
 		if l.input[l.pos] == '\n' {
 			l.line++
 			l.col = 1
+			// Reset per-line parser state. These flags track context within
+			// a single line (keyword/value/unit always appear together), so
+			// they must not leak across a line boundary, whichever scanner
+			// consumed the newline.
+			l.firstWordOnLine = true
+			l.expectingValue = false
+			l.expectingUnit = false
 		} else {
 			l.col++
 		}

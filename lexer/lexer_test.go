@@ -1026,6 +1026,14 @@ func TestPromptTokenReconstruction(t *testing.T) {
 			name:  "prompt no trailing space no command",
 			input: "user@router>",
 		},
+		{
+			name:  "prompt with command and trailing space",
+			input: "user@router> show route ",
+		},
+		{
+			name:  "prompt with command and CRLF",
+			input: "user@router> show route\r\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1258,6 +1266,17 @@ func TestPerLineStateResetOnNewline(t *testing.T) {
 		for _, tok := range tokens {
 			if tok.Value == "5" && tok.Type == TokenUnit {
 				t.Fatal("number on next line wrongly classified as TokenUnit")
+			}
+		}
+	})
+
+	// Newlines consumed inside a token (block comment, string, wildcard)
+	// must reset line state just like newlines in whitespace.
+	t.Run("state does not leak through a multi-line block comment", func(t *testing.T) {
+		tokens := New("description /* x\n*/ foo bar").Tokenize()
+		for _, tok := range tokens {
+			if strings.Contains(tok.Value, "foo bar") {
+				t.Fatalf("second line was swallowed as one value token: %q", tok.Value)
 			}
 		}
 	})
