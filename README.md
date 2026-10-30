@@ -243,6 +243,25 @@ hl := highlighter.NewWithTheme(theme)
 themes := highlighter.ThemeNames() // ["tokyonight", "vibrant", "solarized", ...]
 ```
 
+### Streaming
+
+`Highlight` works on complete text. For output that arrives in chunks, such as
+a PTY, wrap the destination in a `Stream`. It keeps escape sequences whole,
+lexes each chunk in the context of its line, and never delays output.
+
+```go
+import "github.com/lasseh/jink/highlighter"
+
+hl := highlighter.New()
+stream := hl.NewStream(os.Stdout)
+
+io.Copy(stream, ptmx)
+stream.Flush() // writes any unfinished escape sequence
+```
+
+Use `NewDetectingStream` to pass text through unchanged until it looks like
+JunOS.
+
 ### Tokenization (for custom rendering)
 
 ```go

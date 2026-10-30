@@ -52,9 +52,9 @@ func RGB(r, g, b int) string {
 	return "\033[38;2;" + strconv.Itoa(r) + ";" + strconv.Itoa(g) + ";" + strconv.Itoa(b) + "m"
 }
 
-// Palette defines the semantic colors used to build a theme.
+// palette defines the semantic colors used to build a theme.
 // Each theme provides its own palette, and buildTheme maps these to token types.
-type Palette struct {
+type palette struct {
 	// Base colors
 	Foreground string // default text, braces, identifiers
 	Comment    string // comments, semicolons, dim text
@@ -97,7 +97,7 @@ type Palette struct {
 }
 
 // buildTheme creates a Theme from a Palette by mapping semantic colors to token types.
-func buildTheme(p *Palette) *Theme {
+func buildTheme(p *palette) *Theme {
 	return &Theme{
 		colors: map[lexer.TokenType]string{
 			// Config tokens
@@ -184,7 +184,7 @@ func TokyoNightTheme() *Theme {
 	purple := RGB(157, 124, 216)     // #9d7cd8
 	teal := RGB(115, 218, 202)       // #73daca
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        magenta,
@@ -220,7 +220,7 @@ func TokyoNightTheme() *Theme {
 
 // VibrantTheme returns a vibrant color theme (original default).
 func VibrantTheme() *Theme {
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     White,
 		Comment:        Dim + BrightBlack,
 		Command:        BrightYellow,
@@ -267,7 +267,7 @@ func SolarizedDarkTheme() *Theme {
 	cyan := Color256(37)
 	green := Color256(64)
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     base0,
 		Comment:        base01,
 		Command:        yellow,
@@ -313,7 +313,7 @@ func MonokaiTheme() *Theme {
 	white := Color256(231)
 	red := Color256(196)
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     white,
 		Comment:        gray,
 		Command:        pink,
@@ -360,7 +360,7 @@ func NordTheme() *Theme {
 	nord15 := Color256(139) // aurora - purple
 	nordComment := Color256(60)
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     nord4,
 		Comment:        nordComment,
 		Command:        nord13,
@@ -412,7 +412,7 @@ func CatppuccinMochaTheme() *Theme {
 	mauve := RGB(203, 166, 247)    // #cba6f7
 	pink := RGB(245, 194, 231)     // #f5c2e7
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     text,
 		Comment:        overlay0,
 		Command:        mauve,
@@ -459,7 +459,7 @@ func DraculaTheme() *Theme {
 	red := RGB(255, 85, 85)          // #ff5555
 	yellow := RGB(241, 250, 140)     // #f1fa8c
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        pink,
@@ -506,7 +506,7 @@ func GruvboxDarkTheme() *Theme {
 	aqua := RGB(142, 192, 124)       // #8ec07c
 	orange := RGB(254, 128, 25)      // #fe8019
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        yellow,
@@ -553,7 +553,7 @@ func OneDarkTheme() *Theme {
 	cyan := RGB(86, 182, 194)        // #56b6c2
 	orange := RGB(209, 154, 102)     // #d19a66
 
-	return buildTheme(&Palette{
+	return buildTheme(&palette{
 		Foreground:     foreground,
 		Comment:        comment,
 		Command:        purple,

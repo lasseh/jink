@@ -13,9 +13,6 @@ func TestNew(t *testing.T) {
 	if h == nil {
 		t.Fatal("New() returned nil")
 	}
-	if !h.IsEnabled() {
-		t.Error("new highlighter should be enabled by default")
-	}
 }
 
 func TestNewWithTheme(t *testing.T) {
@@ -23,9 +20,6 @@ func TestNewWithTheme(t *testing.T) {
 	h := NewWithTheme(theme)
 	if h == nil {
 		t.Fatal("NewWithTheme() returned nil")
-	}
-	if !h.IsEnabled() {
-		t.Error("new highlighter should be enabled by default")
 	}
 }
 
@@ -35,67 +29,11 @@ func TestSetTheme(t *testing.T) {
 	// Just verify no panic - theme is private
 }
 
-func TestEnableDisable(t *testing.T) {
-	h := New()
-
-	if !h.IsEnabled() {
-		t.Error("should be enabled by default")
-	}
-
-	h.Disable()
-	if h.IsEnabled() {
-		t.Error("should be disabled after Disable()")
-	}
-
-	h.Enable()
-	if !h.IsEnabled() {
-		t.Error("should be enabled after Enable()")
-	}
-}
-
-func TestToggle(t *testing.T) {
-	h := New()
-
-	// Initially enabled
-	if !h.IsEnabled() {
-		t.Error("should be enabled by default")
-	}
-
-	// Toggle off
-	result := h.Toggle()
-	if result {
-		t.Error("Toggle() should return false after disabling")
-	}
-	if h.IsEnabled() {
-		t.Error("should be disabled after first toggle")
-	}
-
-	// Toggle on
-	result = h.Toggle()
-	if !result {
-		t.Error("Toggle() should return true after enabling")
-	}
-	if !h.IsEnabled() {
-		t.Error("should be enabled after second toggle")
-	}
-}
-
 func TestHighlightEmpty(t *testing.T) {
 	h := New()
 	result := h.Highlight("")
 	if result != "" {
 		t.Errorf("expected empty string, got %q", result)
-	}
-}
-
-func TestHighlightDisabled(t *testing.T) {
-	h := New()
-	h.Disable()
-
-	input := "set interfaces ge-0/0/0"
-	result := h.Highlight(input)
-	if result != input {
-		t.Errorf("disabled highlighter should return input unchanged, got %q", result)
 	}
 }
 
@@ -127,37 +65,6 @@ func TestHighlightBasic(t *testing.T) {
 	stripped := StripANSI(result)
 	if stripped != input {
 		t.Errorf("stripped output should match input, got %q", stripped)
-	}
-}
-
-func TestHighlightLine(t *testing.T) {
-	h := New()
-
-	input := "set system host-name router"
-	result := h.HighlightLine(input)
-
-	if !HasANSI(result) {
-		t.Error("HighlightLine should produce ANSI output for JunOS config")
-	}
-}
-
-func TestHighlightLines(t *testing.T) {
-	h := New()
-
-	input := []string{
-		"set system host-name router",
-		"set interfaces ge-0/0/0 unit 0",
-	}
-	result := h.HighlightLines(input)
-
-	if len(result) != len(input) {
-		t.Fatalf("expected %d lines, got %d", len(input), len(result))
-	}
-
-	for i, line := range result {
-		if !HasANSI(line) {
-			t.Errorf("line %d should have ANSI codes", i)
-		}
 	}
 }
 

@@ -15,28 +15,20 @@ func Highlight(input string) string {
 }
 
 // Highlighter applies ANSI color codes to JunOS configuration and show command output.
-// It supports multiple color themes and can be toggled on/off at runtime.
-// All methods are safe for concurrent use.
+// It supports multiple color themes. All methods are safe for concurrent use.
 type Highlighter struct {
-	theme   *Theme
-	enabled bool
-	mu      sync.RWMutex
+	theme *Theme
+	mu    sync.RWMutex
 }
 
 // New creates a new Highlighter with the default theme (Tokyo Night).
 func New() *Highlighter {
-	return &Highlighter{
-		theme:   DefaultTheme(),
-		enabled: true,
-	}
+	return &Highlighter{theme: DefaultTheme()}
 }
 
 // NewWithTheme creates a new Highlighter with a specific theme.
 func NewWithTheme(theme *Theme) *Highlighter {
-	return &Highlighter{
-		theme:   theme,
-		enabled: true,
-	}
+	return &Highlighter{theme: theme}
 }
 
 // SetTheme changes the highlighting theme.
@@ -46,40 +38,11 @@ func (h *Highlighter) SetTheme(theme *Theme) {
 	h.theme = theme
 }
 
-// Enable turns highlighting on.
-func (h *Highlighter) Enable() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.enabled = true
-}
-
-// Disable turns highlighting off.
-func (h *Highlighter) Disable() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.enabled = false
-}
-
-// IsEnabled returns whether highlighting is enabled.
-func (h *Highlighter) IsEnabled() bool {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	return h.enabled
-}
-
-// Toggle switches highlighting on/off and returns the new state.
-func (h *Highlighter) Toggle() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.enabled = !h.enabled
-	return h.enabled
-}
-
 // Highlight applies syntax highlighting to the input text.
-// Returns input unchanged if highlighting is disabled, input is empty,
-// or input doesn't look like JunOS config/output (uses heuristic detection).
+// Returns input unchanged if it is empty or doesn't look like JunOS
+// config/output (uses heuristic detection).
 func (h *Highlighter) Highlight(input string) string {
-	if !h.IsEnabled() || input == "" {
+	if input == "" {
 		return input
 	}
 
@@ -97,7 +60,7 @@ func (h *Highlighter) Highlight(input string) string {
 
 // HighlightForced applies syntax highlighting without checking if input looks like JunOS.
 func (h *Highlighter) HighlightForced(input string) string {
-	if !h.IsEnabled() || input == "" {
+	if input == "" {
 		return input
 	}
 	return h.highlightTokens(input, lexer.ParseModeAuto)
@@ -170,23 +133,9 @@ func (h *Highlighter) renderTokens(tokens []lexer.Token, skip int) string {
 	return buf.String()
 }
 
-// HighlightLine highlights a single line (useful for streaming).
-func (h *Highlighter) HighlightLine(line string) string {
-	return h.Highlight(line)
-}
-
-// HighlightLines highlights multiple lines preserving line structure.
-func (h *Highlighter) HighlightLines(lines []string) []string {
-	result := make([]string, len(lines))
-	for i, line := range lines {
-		result[i] = h.Highlight(line)
-	}
-	return result
-}
-
 // HighlightShowOutput highlights show command output specifically using show mode.
 func (h *Highlighter) HighlightShowOutput(input string) string {
-	if !h.IsEnabled() || input == "" {
+	if input == "" {
 		return input
 	}
 
