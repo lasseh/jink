@@ -37,6 +37,7 @@ var showModeCorpus = []string{
 	"ge-0/0/0                up    up   inet     192.168.1.1/24",
 	"user@router>",
 	"user@router> ",
+	"user@router>\n",
 	"user@router> show bgp summary",
 	"user@router> show route ",
 	"admin@edge-1.example.net# set system host-name edge-1",

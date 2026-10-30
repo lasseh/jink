@@ -1281,3 +1281,103 @@ func TestPerLineStateResetOnNewline(t *testing.T) {
 		}
 	})
 }
+
+func tokenTypeOf(t *testing.T, tokens []Token, value string) TokenType {
+	t.Helper()
+	for _, tok := range tokens {
+		if tok.Value == value {
+			return tok.Type
+		}
+	}
+	t.Fatalf("no token %q in %v", value, tokens)
+	return TokenText
+}
+
+func TestFirstWordAfterLeadingToken(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		word  string
+		want  TokenType
+	}{
+		{"after string", `"quoted" word`, "word", TokenValue},
+		{"after wildcard", "<*> word", "word", TokenValue},
+		{"after star", "* word", "word", TokenValue},
+		{"after block comment", "/* note */ word", "word", TokenKeyword},
+		{"at line start", "word next", "word", TokenKeyword},
+		{"on the next line", "\"quoted\" one\nword", "word", TokenKeyword},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lex := New(tt.input)
+			lex.SetParseMode(ParseModeConfig)
+			if got := tokenTypeOf(t, lex.Tokenize(), tt.word); got != tt.want {
+				t.Errorf("%q in %q: got %v, want %v", tt.word, tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPromptTokensRebuildInput(t *testing.T) {
+	inputs := []string{
+		"user@r>",
+		"user@r>\n",
+		"user@r> \r\n",
+		"user@r> show",
+		"user@r> show \n",
+		"user@r> show route \r",
+		"\ruser@r> show\n",
+		"{master:0}[edit]user@r# set system",
+		"[edit interfaces]\nuser@r#\n",
+		"description 0 ",
+		"description link to core \t;\n",
+	}
+
+	for _, input := range inputs {
+		var got strings.Builder
+		for _, tok := range New(input).Tokenize() {
+			got.WriteString(tok.Value)
+		}
+		if got.String() != input {
+			t.Errorf("tokens rebuild %q as %q", input, got.String())
+		}
+	}
+}
+
+func TestPromptCommandPositions(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		value string
+		line  int
+		col   int
+	}{
+		{"command after prompt", "user@r> show route", "route", 1, 14},
+		{"edit prefix", "[edit]user@r# set system", "system", 1, 19},
+		{"prompt after newline", "[edit]\nuser@r# set", "set", 2, 9},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, tok := range New(tt.input).Tokenize() {
+				if tok.Value != tt.value {
+					continue
+				}
+				if tok.Line != tt.line || tok.Column != tt.col {
+					t.Errorf("%q at %d:%d, want %d:%d", tt.value, tok.Line, tok.Column, tt.line, tt.col)
+				}
+				return
+			}
+			t.Fatalf("no token %q", tt.value)
+		})
+	}
+}
+
+func TestPromptCommandIsNotALineStart(t *testing.T) {
+	// A leading + or - only marks a diff at the start of a line.
+	tokens := New("user@r> + foo").Tokenize()
+	if got := tokenTypeOf(t, tokens, "+"); got == TokenDiffAdd {
+		t.Errorf("+ after a prompt classified as %v", got)
+	}
+}

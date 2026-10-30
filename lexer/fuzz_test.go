@@ -1,6 +1,9 @@
 package lexer
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // FuzzTokenize feeds arbitrary input through the lexer in every parse mode and
 // asserts it never panics or hangs, and that emitted tokens carry sane columns.
@@ -26,11 +29,16 @@ func FuzzTokenize(f *testing.F) {
 	}
 
 	check := func(t *testing.T, tokens []Token, mode ParseMode, in string) {
+		var rebuilt strings.Builder
 		for _, tk := range tokens {
 			if tk.Value != "" && tk.Column < 1 {
 				t.Fatalf("non-positive column %d for token %q (mode %d, input %q)",
 					tk.Column, tk.Value, mode, in)
 			}
+			rebuilt.WriteString(tk.Value)
+		}
+		if rebuilt.String() != in {
+			t.Fatalf("tokens rebuild %q as %q (mode %d)", in, rebuilt.String(), mode)
 		}
 	}
 

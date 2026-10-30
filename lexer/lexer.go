@@ -19,10 +19,10 @@ type Lexer struct {
 	col             int
 	parseMode       ParseMode
 	detectedMode    bool
-	expectingValue  bool   // true after keywords like "description" that take a value
-	expectingUnit   bool   // true after "unit" keyword to classify numbers as TokenUnit
-	lastToken       string // tracks the last non-whitespace token value for context
-	firstWordOnLine bool   // true when the next word is the first on its line (for positional fallback)
+	detectFrom      int  // input offset where parse-mode detection starts
+	expectingValue  bool // true after keywords like "description" that take a value
+	expectingUnit   bool // true after "unit" keyword to classify numbers as TokenUnit
+	firstWordOnLine bool // true when the next word is the first on its line (for positional fallback)
 }
 
 // ParseMode determines which classification rules to use for tokenization.
@@ -488,12 +488,7 @@ func New(input string) *Lexer {
 // If parseMode is Auto (default), it auto-detects whether the input
 // is configuration syntax or show command output based on content heuristics.
 func (l *Lexer) Tokenize() []Token {
-	var tokens []Token
-
-	// Check if the entire input is a prompt line
-	if promptTokens := l.tryTokenizePrompt(l.input); promptTokens != nil {
-		return promptTokens
-	}
+	tokens := l.scanPrompt()
 
 	for l.pos < len(l.input) {
 		token := l.nextToken()
@@ -505,136 +500,51 @@ func (l *Lexer) Tokenize() []Token {
 	return tokens
 }
 
-// tryTokenizePrompt checks if input matches a JunOS prompt and returns tokens if so.
-func (l *Lexer) tryTokenizePrompt(input string) []Token {
-	// Try to match the full prompt pattern
-	matches := promptPattern.FindStringSubmatch(input)
+// scanPrompt consumes a JunOS prompt at the start of the input and returns its
+// tokens, leaving the lexer on the command that follows. It returns nil when
+// the input isn't a prompt line.
+func (l *Lexer) scanPrompt() []Token {
+	matches := promptPattern.FindStringSubmatch(l.input)
 	if matches == nil {
 		return nil
 	}
 
 	var tokens []Token
-	col := 1
-
-	// matches[1] = {master:N} prefix (optional)
-	// matches[2] = [edit ...] prefix (optional)
-	// matches[3] = leading whitespace/control chars like \r (optional)
-	// matches[4] = username
-	// matches[5] = hostname
-	// matches[6] = prompt char (> or #)
-	// matches[7] = whitespace between prompt char and command (optional)
-	// matches[8] = command after prompt (optional)
-
-	// Add {master:N} prefix if present
-	if matches[1] != "" {
+	take := func(tokenType TokenType, length int) {
+		if length == 0 {
+			return
+		}
 		tokens = append(tokens, Token{
-			Type:   TokenPromptEdit,
-			Value:  matches[1],
-			Line:   1,
-			Column: col,
+			Type:   tokenType,
+			Value:  l.input[l.pos : l.pos+length],
+			Line:   l.line,
+			Column: l.col,
 		})
-		col += len(matches[1])
-	}
-
-	// Add [edit ...] context if present
-	if matches[2] != "" {
-		tokens = append(tokens, Token{
-			Type:   TokenPromptEdit,
-			Value:  matches[2],
-			Line:   1,
-			Column: col,
-		})
-		col += len(matches[2])
-	}
-
-	// Preserve leading whitespace/control chars (critical for cursor control like \r)
-	if matches[3] != "" {
-		tokens = append(tokens, Token{
-			Type:   TokenText,
-			Value:  matches[3],
-			Line:   1,
-			Column: col,
-		})
-		col += len(matches[3])
-	}
-
-	// Add username
-	tokens = append(tokens, Token{
-		Type:   TokenPromptUser,
-		Value:  matches[4],
-		Line:   1,
-		Column: col,
-	})
-	col += len(matches[4])
-
-	// Add @
-	tokens = append(tokens, Token{
-		Type:   TokenPromptAt,
-		Value:  "@",
-		Line:   1,
-		Column: col,
-	})
-	col++
-
-	// Add hostname (different token type based on prompt char)
-	isConfig := matches[6] == "#"
-	hostTokenType := TokenPromptHostOper
-	if isConfig {
-		hostTokenType = TokenPromptHostConf
-	}
-	tokens = append(tokens, Token{
-		Type:   hostTokenType,
-		Value:  matches[5],
-		Line:   1,
-		Column: col,
-	})
-	col += len(matches[5])
-
-	// Add prompt character
-	promptTokenType := TokenPromptOper
-	if isConfig {
-		promptTokenType = TokenPromptConf
-	}
-	tokens = append(tokens, Token{
-		Type:   promptTokenType,
-		Value:  matches[6],
-		Line:   1,
-		Column: col,
-	})
-	col++
-
-	// Emit captured whitespace after prompt char (group 7)
-	if matches[7] != "" {
-		tokens = append(tokens, Token{
-			Type:   TokenText,
-			Value:  matches[7],
-			Line:   1,
-			Column: col,
-		})
-		col += len(matches[7])
-	}
-
-	// Tokenize command after prompt if present (group 8). Not trimmed: a
-	// trailing space or \r is part of the redraw and moves the cursor.
-	if matches[8] != "" {
-		cmdLexer := New(matches[8])
-		cmdTokens := cmdLexer.Tokenize()
-		for _, tok := range cmdTokens {
-			tok.Column = col
-			tokens = append(tokens, tok)
-			col += len(tok.Value)
+		for range length {
+			l.advance()
 		}
 	}
 
-	// Preserve trailing newline if present in original input
-	if strings.HasSuffix(input, "\n") {
-		tokens = append(tokens, Token{
-			Type:   TokenText,
-			Value:  "\n",
-			Line:   1,
-			Column: col,
-		})
+	hostTokenType, promptTokenType := TokenPromptHostOper, TokenPromptOper
+	if matches[6] == "#" {
+		hostTokenType, promptTokenType = TokenPromptHostConf, TokenPromptConf
 	}
+
+	// The match groups are contiguous, so each length advances to the next.
+	take(TokenPromptEdit, len(matches[1])) // {master:N} prefix
+	take(TokenPromptEdit, len(matches[2])) // [edit ...] context
+	take(TokenText, len(matches[3]))       // leading control chars like \r
+	take(TokenPromptUser, len(matches[4]))
+	take(TokenPromptAt, 1)
+	take(hostTokenType, len(matches[5]))
+	take(promptTokenType, 1)
+	take(TokenText, len(matches[7])) // whitespace before the command
+
+	// The command is judged on its own text, not on the mode set for the
+	// rest of the input.
+	l.parseMode = ParseModeAuto
+	l.detectedMode = false
+	l.detectFrom = l.pos
 
 	return tokens
 }
@@ -689,6 +599,7 @@ func (l *Lexer) nextToken() Token {
 	case ch == '<':
 		return l.scanWildcard()
 	case ch == '*':
+		l.firstWordOnLine = false
 		l.advance()
 		return Token{Type: TokenWildcard, Value: "*", Line: startLine, Column: startCol}
 	case isWhitespace(ch):
@@ -800,6 +711,7 @@ func (l *Lexer) scanBlockComment() Token {
 
 // scanString scans a quoted string.
 func (l *Lexer) scanString(quote byte) Token {
+	l.firstWordOnLine = false
 	startLine, startCol := l.line, l.col
 	start := l.pos
 
@@ -857,21 +769,23 @@ func (l *Lexer) scanUnquotedValue() Token {
 	start := l.pos
 
 	// Read until semicolon, newline, or end of input
-	for l.pos < len(l.input) {
-		ch := l.input[l.pos]
-		if ch == ';' || ch == '\n' {
-			break
-		}
+	end := start
+	for end < len(l.input) && l.input[end] != ';' && l.input[end] != '\n' {
+		end++
+	}
+
+	// Trailing whitespace isn't part of the value, but it stays in the output:
+	// the next token picks it up.
+	for end > start && (l.input[end-1] == ' ' || l.input[end-1] == '\t') {
+		end--
+	}
+	for l.pos < end {
 		l.advance()
 	}
 
-	value := l.input[start:l.pos]
-	// Trim trailing whitespace from the value
-	value = strings.TrimRight(value, " \t")
-
 	return Token{
 		Type:   TokenValue,
-		Value:  value,
+		Value:  l.input[start:end],
 		Line:   startLine,
 		Column: startCol,
 	}
@@ -879,6 +793,7 @@ func (l *Lexer) scanUnquotedValue() Token {
 
 // scanWildcard scans <*> style wildcards.
 func (l *Lexer) scanWildcard() Token {
+	l.firstWordOnLine = false
 	startLine, startCol := l.line, l.col
 	start := l.pos
 
@@ -975,19 +890,15 @@ func (l *Lexer) classifyConfigWord(word, lower string) TokenType {
 
 	// Check keyword maps first
 	if commands[lower] {
-		l.lastToken = lower
 		return TokenCommand
 	}
 	if sections[lower] {
-		l.lastToken = lower
 		return TokenSection
 	}
 	if protocols[lower] {
-		l.lastToken = lower
 		return TokenProtocol
 	}
 	if actions[lower] {
-		l.lastToken = lower
 		return TokenAction
 	}
 	if keywords[lower] {
@@ -999,7 +910,6 @@ func (l *Lexer) classifyConfigWord(word, lower string) TokenType {
 		if lower == "unit" {
 			l.expectingUnit = true
 		}
-		l.lastToken = lower
 		return TokenKeyword
 	}
 
@@ -1136,7 +1046,7 @@ func isWhitespace(ch byte) bool {
 func (l *Lexer) detectParseMode() ParseMode {
 	// Sample first N chars for detection - enough to see headers/commands
 	// without processing entire large configs
-	sample := l.input
+	sample := l.input[l.detectFrom:]
 	if len(sample) > parseModeDetectionSampleSize {
 		sample = sample[:parseModeDetectionSampleSize]
 	}
