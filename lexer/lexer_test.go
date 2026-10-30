@@ -1444,3 +1444,16 @@ func TestIsJunOS(t *testing.T) {
 		}
 	}
 }
+
+func TestPromptTrailingNewlineIsItsOwnToken(t *testing.T) {
+	// An unterminated wildcard runs to the end of its input, which must stop
+	// at the end of the command.
+	tokens := New("user@r> show <x\n").Tokenize()
+	last := tokens[len(tokens)-1]
+	if last.Type != TokenText || last.Value != "\n" {
+		t.Errorf("last token = %v %q, want Text \"\\n\"", last.Type, last.Value)
+	}
+	if prev := tokens[len(tokens)-2]; prev.Value != "<x" {
+		t.Errorf("wildcard token = %q, want \"<x\"", prev.Value)
+	}
+}

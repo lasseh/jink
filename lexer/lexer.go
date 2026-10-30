@@ -488,21 +488,26 @@ func New(input string) *Lexer {
 // If parseMode is Auto (default), it auto-detects whether the input
 // is configuration syntax or show command output based on content heuristics.
 func (l *Lexer) Tokenize() []Token {
-	tokens := l.scanPrompt()
+	if promptTokens := l.scanPrompt(); promptTokens != nil {
+		return promptTokens
+	}
+	return l.scanTokens(nil)
+}
 
+// scanTokens appends the tokens from the current position to the end of the
+// input.
+func (l *Lexer) scanTokens(tokens []Token) []Token {
 	for l.pos < len(l.input) {
 		token := l.nextToken()
 		if token.Type != TokenText || token.Value != "" {
 			tokens = append(tokens, token)
 		}
 	}
-
 	return tokens
 }
 
-// scanPrompt consumes a JunOS prompt at the start of the input and returns its
-// tokens, leaving the lexer on the command that follows. It returns nil when
-// the input isn't a prompt line.
+// scanPrompt tokenizes the input when it is a JunOS prompt line, command
+// included, and returns nil when it isn't.
 func (l *Lexer) scanPrompt() []Token {
 	matches := promptPattern.FindStringSubmatch(l.input)
 	if matches == nil {
@@ -545,6 +550,13 @@ func (l *Lexer) scanPrompt() []Token {
 	l.parseMode = ParseModeAuto
 	l.detectedMode = false
 	l.detectFrom = l.pos
+
+	// Lex only the command: a trailing newline is not part of its last token.
+	input := l.input
+	l.input = input[:l.pos+len(matches[8])]
+	tokens = l.scanTokens(tokens)
+	l.input = input
+	take(TokenText, len(input)-l.pos)
 
 	return tokens
 }
