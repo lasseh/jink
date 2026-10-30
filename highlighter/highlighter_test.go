@@ -517,3 +517,20 @@ set protocols ospf area 0.0.0.0 interface ge-0/0/0.0`
 		t.Errorf("content not preserved")
 	}
 }
+
+func TestHighlightShowOutputKeepsEscapesOutsideColor(t *testing.T) {
+	// Escapes in show output must stay outside the color codes, so they reach
+	// the terminal on their own instead of being lexed as part of a word.
+	input := "\x1b[Kge-0/0/0 up"
+	result := New().HighlightShowOutput(input)
+
+	if !strings.HasPrefix(result, "\x1b[K") {
+		t.Errorf("escape should come first, unwrapped: %q", result)
+	}
+	if StripANSI(result) != StripANSI(input) {
+		t.Errorf("visible text changed: %q", result)
+	}
+	if !strings.Contains(result, DefaultTheme().GetColor(lexer.TokenInterface)+"ge-0/0/0"+Reset) {
+		t.Errorf("interface should be colored on its own: %q", result)
+	}
+}
