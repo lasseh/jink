@@ -1,6 +1,10 @@
 package highlighter
 
-import "testing"
+import (
+	"io"
+	"strings"
+	"testing"
+)
 
 var benchConfig = `set system host-name router1
 set interfaces ge-0/0/0 unit 0 family inet address 192.168.1.1/24
@@ -35,6 +39,19 @@ func BenchmarkHighlightForcedWithEscapes(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sink = h.HighlightForced(benchEscapes)
+	}
+}
+
+func BenchmarkStreamLines(b *testing.B) {
+	lines := strings.SplitAfter(benchConfig, "\n")
+	s := New().NewStream(io.Discard)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, line := range lines {
+			if _, err := s.Write([]byte(line)); err != nil {
+				b.Fatal(err)
+			}
+		}
 	}
 }
 

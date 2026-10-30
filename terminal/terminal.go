@@ -15,12 +15,8 @@ import (
 	"github.com/lasseh/jink/highlighter"
 )
 
-// Buffer size constants.
-const (
-	readBufferSize = 32 * 1024 // Size of the read buffer from PTY
-	lineBufferSize = 4096      // Initial capacity for line buffer
-	lineFlushLimit = 4000      // Flush line buffer when it exceeds this size
-)
+// readBufferSize is the size of the read buffer from the PTY.
+const readBufferSize = 32 * 1024
 
 var (
 	debug   bool
@@ -143,45 +139,25 @@ func (t *Terminal) Run() error {
 	return nil
 }
 
-// processOutput reads from the PTY and writes highlighted output.
-// Both complete lines and partial lines (prompts) are highlighted.
-// Cursor control characters (like \r) are preserved to allow command-line editing.
+// processOutput reads from the PTY and writes the output, highlighted unless
+// disabled. Each read is written straight away, so prompts and keystroke echoes
+// appear immediately.
 func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
-	buf := make([]byte, readBufferSize)
-	lineBuf := make([]byte, 0, lineBufferSize)
+	var stream *highlighter.Stream
+	if t.enabled {
+		stream = t.highlighter.NewStream(w)
+		w = stream
+	}
 
+	buf := make([]byte, readBufferSize)
 	for {
 		n, err := r.Read(buf)
 		if n > 0 {
-			data := buf[:n]
-
 			if IsDebug() {
-				fmt.Fprintf(os.Stderr, "\n[DEBUG] Read %d bytes: %q\n", n, data)
+				fmt.Fprintf(os.Stderr, "\n[DEBUG] Read %d bytes: %q\n", n, buf[:n])
 			}
-
-			// Process byte by byte
-			for _, b := range data {
-				lineBuf = append(lineBuf, b)
-
-				// Flush on newline or when buffer gets large
-				if b == '\n' {
-					t.writeOutput(w, lineBuf)
-					lineBuf = lineBuf[:0]
-				} else if len(lineBuf) > lineFlushLimit {
-					lineBuf = t.flushComplete(w, lineBuf)
-					// One unterminated sequence fills the buffer and may
-					// never complete, so stop holding it.
-					if len(lineBuf) > lineFlushLimit {
-						t.writeOutput(w, lineBuf)
-						lineBuf = lineBuf[:0]
-					}
-				}
-			}
-
-			// Flush partial lines (prompts) - also highlighted
-			// Cursor control chars like \r are preserved by the lexer.
-			if len(lineBuf) > 0 {
-				lineBuf = t.flushComplete(w, lineBuf)
+			if _, err := w.Write(buf[:n]); err != nil && IsDebug() {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Write error: %v\n", err)
 			}
 		}
 
@@ -193,39 +169,9 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 		}
 	}
 
-	// Output ended mid-sequence; pass the remainder through as-is
-	if len(lineBuf) > 0 {
-		t.writeOutput(w, lineBuf)
-	}
-}
-
-// flushComplete writes buf up to any unfinished trailing escape sequence and
-// returns the held-back bytes, moved to the front of buf, so the next read can
-// complete the sequence.
-func (t *Terminal) flushComplete(w io.Writer, buf []byte) []byte {
-	flush := len(buf)
-	if k := highlighter.IncompleteEscapeStart(string(buf)); k >= 0 {
-		flush = k
-	}
-	if flush > 0 {
-		t.writeOutput(w, buf[:flush])
-	}
-	return append(buf[:0], buf[flush:]...)
-}
-
-// writeOutput writes data to the writer, optionally highlighting it.
-func (t *Terminal) writeOutput(w io.Writer, data []byte) {
-	var output string
-	if t.enabled {
-		output = t.highlighter.HighlightForced(string(data))
-		if IsDebug() {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Highlight: %q -> %q\n", data, output)
+	if stream != nil {
+		if err := stream.Flush(); err != nil && IsDebug() {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Write error: %v\n", err)
 		}
-	} else {
-		output = string(data)
-	}
-
-	if _, err := io.WriteString(w, output); err != nil && IsDebug() {
-		fmt.Fprintf(os.Stderr, "[DEBUG] Write error: %v\n", err)
 	}
 }

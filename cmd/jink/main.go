@@ -13,7 +13,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/lasseh/jink/highlighter"
-	"github.com/lasseh/jink/lexer"
 	"github.com/lasseh/jink/terminal"
 )
 
@@ -173,37 +172,34 @@ func highlightStdin(theme *highlighter.Theme, disabled, force bool) error {
 		return nil
 	}
 
+	if disabled {
+		_, err := io.Copy(os.Stdout, os.Stdin)
+		return err
+	}
+
 	hl := highlighter.NewWithTheme(theme)
+	stream := hl.NewDetectingStream(os.Stdout)
+	if force {
+		stream = hl.NewStream(os.Stdout)
+	}
+
+	// Whole lines reach the stream, so a block of piped text isn't split at
+	// arbitrary points. A pipe still delivers each line as soon as it's complete.
 	reader := bufio.NewReader(os.Stdin)
-
-	// Track if we've detected JunOS content (sticky detection)
-	detectedJunOS := force
-
 	for {
 		line, err := reader.ReadString('\n')
 		if line != "" {
-			switch {
-			case disabled:
-				fmt.Print(line)
-			case detectedJunOS || force:
-				// Force mode or already detected - highlight everything
-				fmt.Print(hl.HighlightForced(line))
-			default:
-				// Auto-detect mode - once a line looks like JunOS, enable for
-				// all future lines
-				detectedJunOS = lexer.IsJunOS(highlighter.StripANSI(line))
-				fmt.Print(hl.Highlight(line))
+			if _, err := stream.Write([]byte(line)); err != nil {
+				return err
 			}
 		}
 		if err != nil {
 			if err == io.EOF {
-				break
+				return stream.Flush()
 			}
 			return err
 		}
 	}
-
-	return nil
 }
 
 func runWithTerminal(args []string, theme *highlighter.Theme, disabled bool) error {

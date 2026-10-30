@@ -92,7 +92,7 @@ func (h *Highlighter) Highlight(input string) string {
 		return input
 	}
 
-	return h.highlightTokensCleaned(cleaned)
+	return h.renderTokens(tokenize(cleaned, lexer.ParseModeAuto), 0)
 }
 
 // HighlightForced applies syntax highlighting without checking if input looks like JunOS.
@@ -100,15 +100,15 @@ func (h *Highlighter) HighlightForced(input string) string {
 	if !h.IsEnabled() || input == "" {
 		return input
 	}
-	return h.highlightTokens(input)
+	return h.highlightTokens(input, lexer.ParseModeAuto)
 }
 
 // highlightTokens tokenizes and colorizes the input while preserving cursor control sequences.
-func (h *Highlighter) highlightTokens(input string) string {
+func (h *Highlighter) highlightTokens(input string, mode lexer.ParseMode) string {
 	// Fast path: most lines contain no escape sequences, so skip the segment
 	// split (one slice alloc + extra buffer copies) and tokenize directly.
 	if !HasANSI(input) {
-		return h.highlightTokensCleaned(input)
+		return h.renderTokens(tokenize(input, mode), 0)
 	}
 
 	// Extract cursor control sequences and text segments separately
@@ -122,22 +122,24 @@ func (h *Highlighter) highlightTokens(input string) string {
 			buf.WriteString(seg.text)
 		} else {
 			// Highlight text segments
-			highlighted := h.highlightTokensCleaned(seg.text)
-			buf.WriteString(highlighted)
+			buf.WriteString(h.renderTokens(tokenize(seg.text, mode), 0))
 		}
 	}
 	return buf.String()
 }
 
-// highlightTokensCleaned tokenizes and colorizes already-cleaned input.
-func (h *Highlighter) highlightTokensCleaned(cleaned string) string {
-	lex := lexer.New(cleaned)
-	tokens := lex.Tokenize()
-	return h.renderTokens(tokens)
+// tokenize lexes text, leaving mode detection to the lexer for ParseModeAuto.
+func tokenize(text string, mode lexer.ParseMode) []lexer.Token {
+	lex := lexer.New(text)
+	if mode != lexer.ParseModeAuto {
+		lex.SetParseMode(mode)
+	}
+	return lex.Tokenize()
 }
 
-// renderTokens applies theme colors to a slice of tokens and returns the colorized string.
-func (h *Highlighter) renderTokens(tokens []lexer.Token) string {
+// renderTokens applies theme colors to a slice of tokens and returns the
+// colorized string, leaving out the first skip bytes of token text.
+func (h *Highlighter) renderTokens(tokens []lexer.Token, skip int) string {
 	h.mu.RLock()
 	theme := h.theme
 	h.mu.RUnlock()
@@ -148,13 +150,21 @@ func (h *Highlighter) renderTokens(tokens []lexer.Token) string {
 
 	var buf bytes.Buffer
 	for _, token := range tokens {
+		value := token.Value
+		if skip >= len(value) {
+			skip -= len(value)
+			continue
+		}
+		value = value[skip:]
+		skip = 0
+
 		color := theme.colors[token.Type]
 		if color != "" {
 			buf.WriteString(color)
-			buf.WriteString(token.Value)
+			buf.WriteString(value)
 			buf.WriteString(Reset)
 		} else {
-			buf.WriteString(token.Value)
+			buf.WriteString(value)
 		}
 	}
 	return buf.String()
@@ -180,10 +190,7 @@ func (h *Highlighter) HighlightShowOutput(input string) string {
 		return input
 	}
 
-	lex := lexer.New(input)
-	lex.SetParseMode(lexer.ParseModeShow)
-	tokens := lex.Tokenize()
-	return h.renderTokens(tokens)
+	return h.highlightTokens(input, lexer.ParseModeShow)
 }
 
 // segment represents either an escape sequence or text content.
@@ -332,10 +339,10 @@ func StripANSI(input string) string {
 	return buf.String()
 }
 
-// IncompleteEscapeStart returns the index where an unfinished escape sequence
+// incompleteEscapeStart returns the index where an unfinished escape sequence
 // at the end of input begins, or -1 if input ends cleanly. Streaming callers
 // hold those bytes back until the next read completes the sequence.
-func IncompleteEscapeStart(input string) int {
+func incompleteEscapeStart(input string) int {
 	i := 0
 	for i < len(input) {
 		if input[i] != escapeChar {

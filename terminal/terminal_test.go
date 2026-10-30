@@ -93,42 +93,6 @@ func TestSetEnabled(t *testing.T) {
 	}
 }
 
-func TestWriteOutput(t *testing.T) {
-	term := New("echo", "test")
-
-	tests := []struct {
-		name     string
-		enabled  bool
-		input    string
-		contains string
-	}{
-		{
-			name:     "highlighting enabled with JunOS",
-			enabled:  true,
-			input:    "set interfaces ge-0/0/0",
-			contains: "\033[", // Should have ANSI codes
-		},
-		{
-			name:     "highlighting disabled",
-			enabled:  false,
-			input:    "set interfaces ge-0/0/0",
-			contains: "set interfaces", // Should be unchanged
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			term.SetEnabled(tt.enabled)
-			var buf bytes.Buffer
-			term.writeOutput(&buf, []byte(tt.input))
-			output := buf.String()
-			if !strings.Contains(output, tt.contains) {
-				t.Errorf("output %q should contain %q", output, tt.contains)
-			}
-		})
-	}
-}
-
 func TestProcessOutputBasic(t *testing.T) {
 	term := New("echo", "test")
 	term.SetEnabled(false) // Disable for simpler testing
@@ -185,8 +149,7 @@ func TestProcessOutputLargeBuffer(t *testing.T) {
 	term := New("echo", "test")
 	term.SetEnabled(false)
 
-	// Create a line larger than lineFlushLimit
-	largeLine := strings.Repeat("x", lineFlushLimit+100)
+	largeLine := strings.Repeat("x", readBufferSize+100)
 	reader := strings.NewReader(largeLine)
 	var output bytes.Buffer
 
@@ -194,64 +157,6 @@ func TestProcessOutputLargeBuffer(t *testing.T) {
 
 	if output.String() != largeLine {
 		t.Errorf("expected %d chars, got %d chars", len(largeLine), len(output.String()))
-	}
-}
-
-func TestProcessOutputEscapeAcrossFlushLimit(t *testing.T) {
-	// A long line is flushed at lineFlushLimit. An escape sequence straddling
-	// that point must stay whole, wherever the limit lands inside it.
-	escapes := []string{"\033[10D", "\033]0;user@router\007"}
-
-	for _, esc := range escapes {
-		for offset := 1; offset < len(esc); offset++ {
-			term := New("echo", "test")
-			input := strings.Repeat("x", lineFlushLimit+1-offset) + esc + "set system"
-
-			var output bytes.Buffer
-			term.processOutput(strings.NewReader(input), &output)
-
-			got := output.String()
-			if !strings.Contains(got, esc) {
-				t.Errorf("escape %q at offset %d was split by the flush limit", esc, offset)
-			}
-			if highlighter.StripANSI(got) != highlighter.StripANSI(input) {
-				t.Errorf("escape %q at offset %d changed the visible text", esc, offset)
-			}
-		}
-	}
-}
-
-// readerFunc adapts a function to io.Reader.
-type readerFunc func([]byte) (int, error)
-
-func (f readerFunc) Read(p []byte) (int, error) { return f(p) }
-
-func TestProcessOutputOversizedEscapeNotHeld(t *testing.T) {
-	// An unterminated string sequence longer than lineFlushLimit may never
-	// complete, so it must reach the terminal instead of stalling output.
-	term := New("echo", "test")
-	term.SetEnabled(false)
-	input := "\033]52;c;" + strings.Repeat("A", lineFlushLimit+100)
-
-	var output bytes.Buffer
-	var writtenByNextRead int
-	reads := 0
-	reader := readerFunc(func(p []byte) (int, error) {
-		reads++
-		if reads == 1 {
-			return copy(p, input), nil
-		}
-		writtenByNextRead = output.Len()
-		return 0, io.EOF
-	})
-
-	term.processOutput(reader, &output)
-
-	if writtenByNextRead == 0 {
-		t.Error("oversized escape was held back with nothing written")
-	}
-	if output.String() != input {
-		t.Errorf("expected %d bytes, got %d", len(input), output.Len())
 	}
 }
 
@@ -274,22 +179,6 @@ func TestProcessOutputWithHighlighting(t *testing.T) {
 	stripped := highlighter.StripANSI(output.String())
 	if stripped != input {
 		t.Errorf("stripped output %q should equal input %q", stripped, input)
-	}
-}
-
-func TestConstants(t *testing.T) {
-	// Verify constants are reasonable
-	if readBufferSize <= 0 {
-		t.Error("readBufferSize should be positive")
-	}
-	if lineBufferSize <= 0 {
-		t.Error("lineBufferSize should be positive")
-	}
-	if lineFlushLimit <= 0 {
-		t.Error("lineFlushLimit should be positive")
-	}
-	if lineFlushLimit >= readBufferSize {
-		t.Error("lineFlushLimit should be less than readBufferSize")
 	}
 }
 

@@ -20,11 +20,7 @@ var (
 
 	// junosSignals only decide whether text is JunOS at all, where any single
 	// hit is enough, so they can be broader.
-	junosSignals = slices.Concat(modeShowSignals, []string{
-		"full", "mpls.0",
-		"bgp summary", "ospf neighbor", "interface terse",
-		"routing table", "state:", "admin link", "outq",
-
+	junosSignals = slices.Concat([]string{
 		"set ", "delete ", "show ", "edit ",
 		"interfaces {", "system {", "protocols {",
 		"routing-options", "policy-options", "firewall {",
@@ -32,7 +28,11 @@ var (
 		"ge-", "xe-", "et-", "ae", "lo0",
 		"family inet", "unit ", "vlan-id",
 		"ospf", "bgp", "neighbor", "group",
-	})
+
+		"full", "mpls.0",
+		"bgp summary", "ospf neighbor", "interface terse",
+		"routing table", "state:", "admin link", "outq",
+	}, modeShowSignals)
 
 	commandPrefixes = []string{"set ", "delete ", "show ", "edit ", "request ", "##"}
 )

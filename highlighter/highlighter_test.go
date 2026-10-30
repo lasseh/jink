@@ -269,7 +269,7 @@ func TestIncompleteEscapeStart(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := IncompleteEscapeStart(tt.input); got != tt.want {
+		if got := incompleteEscapeStart(tt.input); got != tt.want {
 			t.Errorf("IncompleteEscapeStart(%q) = %d, want %d", tt.input, got, tt.want)
 		}
 	}

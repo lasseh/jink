@@ -40,3 +40,20 @@ func FuzzHighlight(f *testing.F) {
 		}
 	})
 }
+
+// FuzzStream feeds arbitrary bytes through a Stream in arbitrary chunk sizes and
+// asserts the visible text and escape sequences survive. It runs only under the
+// -fuzz flag, e.g. "go test -run '^$' -fuzz FuzzStream ./highlighter/".
+func FuzzStream(f *testing.F) {
+	for _, input := range streamFixtures {
+		f.Add(input, uint8(1))
+		f.Add(input, uint8(3))
+	}
+	f.Add("\x1b", uint8(1))
+	f.Add("a\x1b\x1b[1m\x1b]0;\x1b", uint8(2))
+
+	f.Fuzz(func(t *testing.T, in string, size uint8) {
+		pieces := chunk(in, int(size)+1)
+		assertPreserved(t, in, runStream(t, pieces))
+	})
+}
