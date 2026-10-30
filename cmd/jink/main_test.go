@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/lasseh/jink/highlighter"
 )
 
 // TestCLIHelp tests that --help returns usage information.
@@ -93,6 +95,31 @@ func TestCLINoHighlight(t *testing.T) {
 	// Output should match input exactly
 	if strings.TrimSpace(outStr) != input {
 		t.Errorf("expected %q, got %q", input, strings.TrimSpace(outStr))
+	}
+}
+
+// TestCLIUnknownTheme tests that a mistyped theme fails and names the options.
+func TestCLIUnknownTheme(t *testing.T) {
+	cmd := exec.Command("go", "run", ".", "-t", "tokyonigth")
+	cmd.Stdin = strings.NewReader("set system\n")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected an error for an unknown theme, got output: %s", output)
+	}
+	for _, want := range []string{`unknown theme "tokyonigth"`, "tokyonight", "monokai"} {
+		if !strings.Contains(string(output), want) {
+			t.Errorf("error output should contain %q, got: %s", want, output)
+		}
+	}
+}
+
+// TestUsageListsEveryTheme tests that help text covers the theme registry.
+func TestUsageListsEveryTheme(t *testing.T) {
+	text := usage()
+	for _, name := range highlighter.ThemeNames() {
+		if !strings.Contains(text, "    "+name+" ") {
+			t.Errorf("usage is missing theme %q", name)
+		}
 	}
 }
 

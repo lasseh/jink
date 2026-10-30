@@ -323,7 +323,7 @@ func main() {
 		showOutput bool
 	)
 
-	flag.StringVar(&themeName, "theme", "default", "Theme: default, solarized, monokai, nord")
+	flag.StringVar(&themeName, "theme", "default", "Theme: "+strings.Join(highlighter.ThemeNames(), ", "))
 	flag.StringVar(&themeName, "t", "default", "Theme (shorthand)")
 	flag.BoolVar(&setFormat, "set", false, "Show set-style config instead of hierarchical")
 	flag.BoolVar(&setFormat, "s", false, "Show set-style config (shorthand)")
@@ -344,7 +344,7 @@ func main() {
 		return
 	}
 
-	theme := highlighter.ThemeByName(strings.ToLower(themeName))
+	theme := highlighter.ThemeByName(themeName)
 	hl := highlighter.NewWithTheme(theme)
 
 	config := sampleConfig
@@ -357,21 +357,6 @@ func main() {
 }
 
 func showAllThemes() {
-	themes := []struct {
-		name  string
-		theme *highlighter.Theme
-	}{
-		{"tokyonight (default)", highlighter.TokyoNightTheme()},
-		{"vibrant", highlighter.VibrantTheme()},
-		{"solarized", highlighter.SolarizedDarkTheme()},
-		{"monokai", highlighter.MonokaiTheme()},
-		{"nord", highlighter.NordTheme()},
-		{"catppuccin", highlighter.CatppuccinMochaTheme()},
-		{"dracula", highlighter.DraculaTheme()},
-		{"gruvbox", highlighter.GruvboxDarkTheme()},
-		{"onedark", highlighter.OneDarkTheme()},
-	}
-
 	// Short sample for comparison
 	sample := `set system host-name router-01
 set interfaces ge-0/0/0 unit 0 family inet address 192.168.1.1/24
@@ -380,15 +365,15 @@ set firewall family inet filter protect term 1 then accept
 # This is a comment
 `
 
-	for _, t := range themes {
-		hl := highlighter.NewWithTheme(t.theme)
-		fmt.Printf("\n=== Theme: %s ===\n", t.name)
+	for _, name := range highlighter.ThemeNames() {
+		hl := highlighter.NewWithTheme(highlighter.ThemeByName(name))
+		fmt.Printf("\n=== Theme: %s ===\n", name)
 		fmt.Println(hl.Highlight(sample))
 	}
 }
 
 func showShowOutputDemo(themeName string) {
-	theme := highlighter.ThemeByName(strings.ToLower(themeName))
+	theme := highlighter.ThemeByName(themeName)
 	hl := highlighter.NewWithTheme(theme)
 
 	fmt.Printf("\n=== JunOS Show Output Highlighting Demo (Theme: %s) ===\n", themeName)

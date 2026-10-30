@@ -493,15 +493,63 @@ func TestThemeGetColorUnknown(t *testing.T) {
 }
 
 func TestThemeByNameAllNames(t *testing.T) {
-	// Every advertised theme name must resolve to a usable theme.
+	// Every advertised theme name must be found by lookup, not rescued by the
+	// ThemeByName fallback, and must resolve to a usable theme.
 	for _, name := range ThemeNames() {
-		theme := ThemeByName(name)
-		if theme == nil {
-			t.Errorf("ThemeByName(%q) returned nil", name)
+		theme, ok := LookupTheme(name)
+		if !ok {
+			t.Errorf("LookupTheme(%q) not found", name)
 			continue
 		}
 		if theme.GetColor(lexer.TokenCommand) == "" {
-			t.Errorf("ThemeByName(%q) has no color for TokenCommand", name)
+			t.Errorf("LookupTheme(%q) has no color for TokenCommand", name)
+		}
+	}
+}
+
+func TestLookupTheme(t *testing.T) {
+	tests := []struct {
+		name string
+		ok   bool
+	}{
+		{"nord", true},
+		{"NORD", true},
+		{"default", true},
+		{"mocha", true},
+		{"tokyonigth", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		theme, ok := LookupTheme(tt.name)
+		if ok != tt.ok {
+			t.Errorf("LookupTheme(%q) ok = %v, want %v", tt.name, ok, tt.ok)
+		}
+		if ok != (theme != nil) {
+			t.Errorf("LookupTheme(%q) theme = %v with ok = %v", tt.name, theme, ok)
+		}
+	}
+}
+
+func TestThemeByNameFallsBackToDefault(t *testing.T) {
+	want := DefaultTheme().GetColor(lexer.TokenCommand)
+	if got := ThemeByName("tokyonigth").GetColor(lexer.TokenCommand); got != want {
+		t.Errorf("unknown name: got color %q, want default %q", got, want)
+	}
+}
+
+func TestThemesMatchThemeNames(t *testing.T) {
+	names := ThemeNames()
+	infos := Themes()
+	if len(infos) != len(names) {
+		t.Fatalf("Themes() has %d entries, ThemeNames() has %d", len(infos), len(names))
+	}
+	for i, info := range infos {
+		if info.Name != names[i] {
+			t.Errorf("Themes()[%d].Name = %q, want %q", i, info.Name, names[i])
+		}
+		if info.Description == "" {
+			t.Errorf("theme %q has no description", info.Name)
 		}
 	}
 }

@@ -1,7 +1,9 @@
 package highlighter
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/lasseh/jink/lexer"
@@ -592,36 +594,68 @@ func (t *Theme) GetColor(tokenType lexer.TokenType) string {
 	return t.colors[tokenType]
 }
 
-// ThemeNames returns a list of available theme names.
-func ThemeNames() []string {
-	return []string{"tokyonight", "vibrant", "solarized", "monokai", "nord", "catppuccin", "dracula", "gruvbox", "onedark"}
+// themes is the registry of built-in themes. Every theme list in the module
+// derives from it.
+var themes = []struct {
+	name        string
+	description string
+	aliases     []string
+	build       func() *Theme
+}{
+	{"tokyonight", "Tokyo Night color scheme (default)", []string{"default", "tokyo-night", "tokyo"}, TokyoNightTheme},
+	{"vibrant", "Vibrant colors for dark terminals", nil, VibrantTheme},
+	{"solarized", "Solarized Dark color scheme", nil, SolarizedDarkTheme},
+	{"monokai", "Monokai-inspired colors", nil, MonokaiTheme},
+	{"nord", "Nord color palette", nil, NordTheme},
+	{"catppuccin", "Catppuccin Mocha color scheme", []string{"catppuccin-mocha", "mocha"}, CatppuccinMochaTheme},
+	{"dracula", "Dracula color scheme", nil, DraculaTheme},
+	{"gruvbox", "Gruvbox Dark color scheme", []string{"gruvbox-dark"}, GruvboxDarkTheme},
+	{"onedark", "Atom One Dark color scheme", []string{"one-dark"}, OneDarkTheme},
 }
 
-// ThemeByName returns a theme by its name. Returns DefaultTheme for unknown names.
-// Supported names: tokyonight, vibrant, solarized, monokai, nord, catppuccin, dracula, gruvbox, onedark.
-func ThemeByName(name string) *Theme {
-	switch name {
-	case "tokyonight", "tokyo-night", "tokyo":
-		return TokyoNightTheme()
-	case "vibrant":
-		return VibrantTheme()
-	case "solarized":
-		return SolarizedDarkTheme()
-	case "monokai":
-		return MonokaiTheme()
-	case "nord":
-		return NordTheme()
-	case "catppuccin", "catppuccin-mocha", "mocha":
-		return CatppuccinMochaTheme()
-	case "dracula":
-		return DraculaTheme()
-	case "gruvbox", "gruvbox-dark":
-		return GruvboxDarkTheme()
-	case "onedark", "one-dark":
-		return OneDarkTheme()
-	default:
-		return DefaultTheme()
+// ThemeInfo describes a built-in theme.
+type ThemeInfo struct {
+	Name        string
+	Description string
+}
+
+// Themes returns the built-in themes.
+func Themes() []ThemeInfo {
+	infos := make([]ThemeInfo, len(themes))
+	for i := range themes {
+		infos[i] = ThemeInfo{Name: themes[i].name, Description: themes[i].description}
 	}
+	return infos
+}
+
+// ThemeNames returns a list of available theme names.
+func ThemeNames() []string {
+	names := make([]string, len(themes))
+	for i := range themes {
+		names[i] = themes[i].name
+	}
+	return names
+}
+
+// LookupTheme returns the theme with the given name or alias, ignoring case.
+// It reports false for an unknown name.
+func LookupTheme(name string) (*Theme, bool) {
+	name = strings.ToLower(name)
+	for i := range themes {
+		if name == themes[i].name || slices.Contains(themes[i].aliases, name) {
+			return themes[i].build(), true
+		}
+	}
+	return nil, false
+}
+
+// ThemeByName returns a theme by its name. Returns DefaultTheme for unknown
+// names; use LookupTheme to detect them.
+func ThemeByName(name string) *Theme {
+	if theme, ok := LookupTheme(name); ok {
+		return theme
+	}
+	return DefaultTheme()
 }
 
 // SetColor allows customizing a color for a token type.

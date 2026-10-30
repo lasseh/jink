@@ -19,7 +19,7 @@ import (
 // version is set via ldflags at build time (see Makefile).
 var version = "dev"
 
-const usage = `jink - ink your JunOS config
+const usageHeader = `jink - ink your JunOS config
 
 USAGE:
     jink ssh user@router          # Interactive SSH with highlighting
@@ -36,18 +36,18 @@ OPTIONS:
     -h, --help            Show this help
 
 THEMES:
-    default     - Tokyo Night color scheme (default)
-    tokyonight  - Tokyo Night color scheme
-    vibrant     - Vibrant colors for dark terminals
-    solarized   - Solarized Dark color scheme
-    monokai     - Monokai-inspired colors
-    nord        - Nord color palette
-    catppuccin  - Catppuccin Mocha color scheme
-    dracula     - Dracula color scheme
-    gruvbox     - Gruvbox Dark color scheme
-    onedark     - Atom One Dark color scheme
-
 `
+
+// usage returns the help text, with the theme list from the registry.
+func usage() string {
+	var b strings.Builder
+	b.WriteString(usageHeader)
+	for _, t := range highlighter.Themes() {
+		fmt.Fprintf(&b, "    %-11s - %s\n", t.Name, t.Description)
+	}
+	b.WriteString("\n")
+	return b.String()
+}
 
 func main() {
 	// Custom flag handling to support both short and long forms
@@ -76,13 +76,13 @@ func main() {
 	flag.BoolVar(&debug, "d", false, "Enable debug output (shorthand)")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stderr, usage)
+		fmt.Fprint(os.Stderr, usage())
 	}
 
 	flag.Parse()
 
 	if showHelp {
-		fmt.Print(usage)
+		fmt.Print(usage())
 		os.Exit(0)
 	}
 
@@ -92,7 +92,12 @@ func main() {
 	}
 
 	// Select theme
-	theme := highlighter.ThemeByName(strings.ToLower(themeName))
+	theme, ok := highlighter.LookupTheme(themeName)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: unknown theme %q (available: %s)\n",
+			themeName, strings.Join(highlighter.ThemeNames(), ", "))
+		os.Exit(1)
+	}
 
 	args := flag.Args()
 
@@ -163,7 +168,7 @@ func highlightStdin(theme *highlighter.Theme, disabled, force bool) error {
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) != 0 {
 		// Interactive mode - show help
-		fmt.Print(usage)
+		fmt.Print(usage())
 		return nil
 	}
 
