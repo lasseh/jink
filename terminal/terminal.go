@@ -164,25 +164,24 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 				lineBuf = append(lineBuf, b)
 
 				// Flush on newline or when buffer gets large
-				if b == '\n' || len(lineBuf) > lineFlushLimit {
+				if b == '\n' {
 					t.writeOutput(w, lineBuf)
 					lineBuf = lineBuf[:0]
+				} else if len(lineBuf) > lineFlushLimit {
+					lineBuf = t.flushComplete(w, lineBuf)
+					// One unterminated sequence fills the buffer and may
+					// never complete, so stop holding it.
+					if len(lineBuf) > lineFlushLimit {
+						t.writeOutput(w, lineBuf)
+						lineBuf = lineBuf[:0]
+					}
 				}
 			}
 
 			// Flush partial lines (prompts) - also highlighted
 			// Cursor control chars like \r are preserved by the lexer.
-			// An escape sequence cut off by the read boundary is held back
-			// so the next read can complete it.
 			if len(lineBuf) > 0 {
-				flush := len(lineBuf)
-				if k := highlighter.IncompleteEscapeStart(string(lineBuf)); k >= 0 {
-					flush = k
-				}
-				if flush > 0 {
-					t.writeOutput(w, lineBuf[:flush])
-				}
-				lineBuf = append(lineBuf[:0], lineBuf[flush:]...)
+				lineBuf = t.flushComplete(w, lineBuf)
 			}
 		}
 
@@ -198,6 +197,20 @@ func (t *Terminal) processOutput(r io.Reader, w io.Writer) {
 	if len(lineBuf) > 0 {
 		t.writeOutput(w, lineBuf)
 	}
+}
+
+// flushComplete writes buf up to any unfinished trailing escape sequence and
+// returns the held-back bytes, moved to the front of buf, so the next read can
+// complete the sequence.
+func (t *Terminal) flushComplete(w io.Writer, buf []byte) []byte {
+	flush := len(buf)
+	if k := highlighter.IncompleteEscapeStart(string(buf)); k >= 0 {
+		flush = k
+	}
+	if flush > 0 {
+		t.writeOutput(w, buf[:flush])
+	}
+	return append(buf[:0], buf[flush:]...)
 }
 
 // writeOutput writes data to the writer, optionally highlighting it.
