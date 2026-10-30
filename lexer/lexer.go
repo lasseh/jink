@@ -1042,50 +1042,10 @@ func isWhitespace(ch byte) bool {
 }
 
 // detectParseMode analyzes input to determine if it's config or show output.
-// Uses heuristics based on common patterns in each format.
+// Config mode is the safe default when the input doesn't favor either.
 func (l *Lexer) detectParseMode() ParseMode {
-	// Sample first N chars for detection - enough to see headers/commands
-	// without processing entire large configs
-	sample := l.input[l.detectFrom:]
-	if len(sample) > parseModeDetectionSampleSize {
-		sample = sample[:parseModeDetectionSampleSize]
-	}
-	lower := strings.ToLower(sample)
-
-	// Config indicators: set, delete, {, }, ;
-	configScore := 0
-	configIndicators := []string{"set ", "delete ", "{", "}", ";", "host-name", "policy-statement"}
-	for _, ind := range configIndicators {
-		if strings.Contains(lower, ind) {
-			configScore++
-		}
-	}
-
-	// Show indicators: states, table names, column patterns
-	// Note: these must be fairly specific to avoid false positives
-	showScore := 0
-	showIndicators := []string{
-		"establ", "idle", "2way",
-		"inet.0", "inet6.0", "bgp.evpn",
-		"flaps", "up/dn",
-		"physical interface", "logical interface",
-	}
-	for _, ind := range showIndicators {
-		if strings.Contains(lower, ind) {
-			showScore++
-		}
-	}
-
-	// Tabular data pattern (multiple spaces between words) - strong indicator
-	// worth 2 points since tabular output is very characteristic of show commands
-	if tabularPattern.MatchString(sample) {
-		showScore += 2
-	}
-
-	// Require showScore >= 2 to avoid false positives on single words like "up"
-	// appearing in config context. Config mode is the safe default
-	if showScore >= 2 && showScore > configScore {
-		return ParseModeShow
+	if mode := DetectMode(l.input[l.detectFrom:]); mode != ParseModeAuto {
+		return mode
 	}
 	return ParseModeConfig
 }

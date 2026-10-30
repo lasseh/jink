@@ -43,7 +43,7 @@ linters:
           - goconst
       # The keyword tables repeat JunOS keywords across sets by design;
       # constants for map keys would only obscure them.
-      - path: lexer/lexer\.go
+      - path: lexer/(lexer|detect)\.go
         linters:
           - goconst
 

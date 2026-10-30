@@ -161,47 +161,6 @@ func TestHighlightLines(t *testing.T) {
 	}
 }
 
-func TestLooksLikeJunOS(t *testing.T) {
-	h := New()
-
-	positives := []string{
-		"set interfaces ge-0/0/0",
-		"delete system services",
-		"show configuration",
-		"edit protocols bgp",
-		"interfaces {",
-		"system {",
-		"protocols {",
-		"routing-options {",
-		"family inet",
-		"ge-0/0/0 {",
-		"unit 0 {",
-		"## Last commit",
-		"ospf area 0.0.0.0",
-		"bgp group external",
-	}
-
-	for _, input := range positives {
-		if !h.looksLikeJunOS(input) {
-			t.Errorf("should recognize %q as JunOS config", input)
-		}
-	}
-
-	negatives := []string{
-		"Hello world",
-		"This is plain text",
-		"SELECT * FROM users",
-		"function main() {}",
-		"import os",
-	}
-
-	for _, input := range negatives {
-		if h.looksLikeJunOS(input) {
-			t.Errorf("should NOT recognize %q as JunOS config", input)
-		}
-	}
-}
-
 func TestStripANSI(t *testing.T) {
 	tests := []struct {
 		input    string

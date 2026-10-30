@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/lasseh/jink/highlighter"
+	"github.com/lasseh/jink/lexer"
 	"github.com/lasseh/jink/terminal"
 )
 
@@ -188,13 +189,10 @@ func highlightStdin(theme *highlighter.Theme, disabled, force bool) error {
 				// Force mode or already detected - highlight everything
 				fmt.Print(hl.HighlightForced(line))
 			default:
-				// Auto-detect mode - check if this looks like JunOS
-				highlighted := hl.Highlight(line)
-				if highlighted != line {
-					// We got highlighting, so it's JunOS - enable for all future lines
-					detectedJunOS = true
-				}
-				fmt.Print(highlighted)
+				// Auto-detect mode - once a line looks like JunOS, enable for
+				// all future lines
+				detectedJunOS = lexer.IsJunOS(highlighter.StripANSI(line))
+				fmt.Print(hl.Highlight(line))
 			}
 		}
 		if err != nil {

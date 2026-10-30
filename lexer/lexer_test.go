@@ -1381,3 +1381,66 @@ func TestPromptCommandIsNotALineStart(t *testing.T) {
 		t.Errorf("+ after a prompt classified as %v", got)
 	}
 }
+
+func TestDetectMode(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  ParseMode
+	}{
+		{"show table", "Peer   AS   InPkt   OutPkt\n10.0.0.1  65001  1  2", ParseModeShow},
+		{"two show signals", "Physical interface: ge-0/0/0, flaps 3", ParseModeShow},
+		{"config", "set system host-name r1", ParseModeConfig},
+		{"config beats a lone show signal", "description idle; ", ParseModeConfig},
+		{"one show signal is not enough", "10.0.0.1 65001 Establ", ParseModeAuto},
+		{"no signal", "ge-0/0/0 up", ParseModeAuto},
+		{"empty", "", ParseModeAuto},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DetectMode(tt.input); got != tt.want {
+				t.Errorf("DetectMode(%q) = %d, want %d", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsJunOS(t *testing.T) {
+	positives := []string{
+		"set interfaces ge-0/0/0",
+		"delete system services",
+		"show configuration",
+		"edit protocols bgp",
+		"interfaces {",
+		"system {",
+		"protocols {",
+		"routing-options {",
+		"family inet",
+		"ge-0/0/0 {",
+		"unit 0 {",
+		"## Last commit",
+		"ospf area 0.0.0.0",
+		"bgp group external",
+	}
+
+	for _, input := range positives {
+		if !IsJunOS(input) {
+			t.Errorf("should recognize %q as JunOS config", input)
+		}
+	}
+
+	negatives := []string{
+		"Hello world",
+		"This is plain text",
+		"SELECT * FROM users",
+		"function main() {}",
+		"import os",
+	}
+
+	for _, input := range negatives {
+		if IsJunOS(input) {
+			t.Errorf("should NOT recognize %q as JunOS config", input)
+		}
+	}
+}
